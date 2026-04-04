@@ -1,0 +1,60 @@
+{
+  "footTraffic": [
+    {
+      "locationId": "loc_downtown_high_street",
+      "date": "2026-04-04",
+      "hour": "12",
+      "peakHours": ["12", "13", "18", "19"],
+      "estimatedPedestrians": 850,
+      "trafficTrend": "rising"
+    },
+    {
+      "locationId": "loc_downtown_high_street",
+      "date": "2026-04-04",
+      "hour": "18",
+      "peakHours": ["12", "13", "18", "19"],
+      "estimatedPedestrians": 920,
+      "trafficTrend": "peak"
+    },
+    {
+      "locationId": "loc_university_square",
+      "date": "2026-04-04",
+      "hour": "14",
+      "peakHours": ["11", "12", "14", "15", "18", "19"],
+      "estimatedPedestrians": 1200,
+      "trafficTrend": "peak"
+    },
+    {
+      "locationId": "loc_university_square",
+      "date": "2026-04-04",
+      "hour": "19",
+      "peakHours": ["11", "12", "14", "15", "18", "19"],
+      "estimatedPedestrians": 1050,
+      "trafficTrend": "falling"
+    },
+    {
+      "locationId": "loc_market_square",
+      "date": "2026-04-04",
+      "hour": "10",
+      "peakHours": ["10", "11", "16", "17"],
+      "estimatedPedestrians": 650,
+      "trafficTrend": "stable"
+    },
+    {
+      "locationId": "loc_central_park",
+      "date": "2026-04-04",
+      "hour": "15",
+      "peakHours": ["15", "16", "17", "18"],
+      "estimatedPedestrians": 780,
+      "trafficTrend": "rising"
+    },
+    {
+      "locationId": "loc_beach_area",
+      "date": "2026-04-04",
+      "hour": "17",
+      "peakHours": ["17", "18", "19", "20"],
+      "estimatedPedestrians": 950,
+      "trafficTrend": "rising"
+    }
+  ]
+}

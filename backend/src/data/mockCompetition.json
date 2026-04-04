@@ -1,0 +1,54 @@
+{
+  "competitors": [
+    {
+      "id": "comp_pizza_wagon",
+      "name": "Pizza Wagon",
+      "locationId": "loc_downtown_high_street",
+      "cuisineType": "pizza",
+      "rating": 4.5,
+      "reviews": 120,
+      "priceRange": "$$",
+      "active": true
+    },
+    {
+      "id": "comp_taco_street",
+      "name": "Taco Street",
+      "locationId": "loc_university_square",
+      "cuisineType": "mexican",
+      "rating": 4.3,
+      "reviews": 95,
+      "priceRange": "$",
+      "active": true
+    },
+    {
+      "id": "comp_burger_king_mobile",
+      "name": "Burger King Mobile",
+      "locationId": "loc_central_park",
+      "cuisineType": "american",
+      "rating": 4.0,
+      "reviews": 200,
+      "priceRange": "$$",
+      "active": true
+    },
+    {
+      "id": "comp_kebab_house",
+      "name": "Kebab Express",
+      "locationId": "loc_market_square",
+      "cuisineType": "middle_eastern",
+      "rating": 4.2,
+      "reviews": 78,
+      "priceRange": "$",
+      "active": true
+    },
+    {
+      "id": "comp_gelato_shop",
+      "name": "Gelato Ice Cream",
+      "locationId": "loc_beach_area",
+      "cuisineType": "dessert",
+      "rating": 4.6,
+      "reviews": 145,
+      "priceRange": "$$",
+      "active": true
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+node_modules/
+*.local
+.env
+.env.local
+.env.*.local
+dist/
+dist-ssr/
+coverage/
+.nyc_output/
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vscode/
+.idea/

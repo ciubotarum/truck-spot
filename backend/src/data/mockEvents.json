@@ -1,0 +1,60 @@
+{
+  "events": [
+    {
+      "id": "evt_spring_festival",
+      "name": "Spring Food Festival",
+      "date": "2026-04-04",
+      "location": "Central Park Area",
+      "locationId": "loc_central_park",
+      "startTime": "10:00",
+      "endTime": "22:00",
+      "expectedAttendance": 5000,
+      "description": "Annual spring food festival with local vendors and international cuisines",
+      "category": "festival",
+      "relevanceScore": 0.95,
+      "impact": "very_high"
+    },
+    {
+      "id": "evt_farmers_market",
+      "name": "Weekly Farmers Market",
+      "date": "2026-04-04",
+      "location": "Market Square",
+      "locationId": "loc_market_square",
+      "startTime": "08:00",
+      "endTime": "14:00",
+      "expectedAttendance": 2000,
+      "description": "Fresh produce and local goods market with artisan products",
+      "category": "market",
+      "relevanceScore": 0.80,
+      "impact": "high"
+    },
+    {
+      "id": "evt_lunch_rush",
+      "name": "Business District Lunch Hour",
+      "date": "2026-04-04",
+      "location": "Downtown High Street",
+      "locationId": "loc_downtown_high_street",
+      "startTime": "12:00",
+      "endTime": "14:00",
+      "expectedAttendance": 3000,
+      "description": "Peak lunch time in business district with office workers",
+      "category": "business",
+      "relevanceScore": 0.85,
+      "impact": "high"
+    },
+    {
+      "id": "evt_student_event",
+      "name": "University Career Fair",
+      "date": "2026-04-04",
+      "location": "University Square",
+      "locationId": "loc_university_square",
+      "startTime": "10:00",
+      "endTime": "18:00",
+      "expectedAttendance": 2500,
+      "description": "Career fair attracting many students and professionals",
+      "category": "academic",
+      "relevanceScore": 0.75,
+      "impact": "high"
+    }
+  ]
+}

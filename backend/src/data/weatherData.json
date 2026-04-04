@@ -1,0 +1,48 @@
+{
+  "weather": [
+    {
+      "date": "2026-04-04",
+      "temperature": 18,
+      "condition": "sunny",
+      "humidity": 65,
+      "windSpeed": 12,
+      "uvIndex": 6,
+      "perception": "ideal",
+      "trafficImpact": 1.1,
+      "description": "Perfect weather for outdoor activities and foot traffic"
+    },
+    {
+      "date": "2026-04-05",
+      "temperature": 15,
+      "condition": "cloudy",
+      "humidity": 70,
+      "windSpeed": 15,
+      "uvIndex": 4,
+      "perception": "moderate",
+      "trafficImpact": 0.95,
+      "description": "Cloudy with occasional sun, moderate foot traffic expected"
+    },
+    {
+      "date": "2026-04-06",
+      "temperature": 12,
+      "condition": "rainy",
+      "humidity": 85,
+      "windSpeed": 20,
+      "uvIndex": 2,
+      "perception": "poor",
+      "trafficImpact": 0.7,
+      "description": "Rainy day with reduced outdoor activity"
+    },
+    {
+      "date": "2026-04-07",
+      "temperature": 20,
+      "condition": "sunny",
+      "humidity": 60,
+      "windSpeed": 10,
+      "uvIndex": 7,
+      "perception": "excellent",
+      "trafficImpact": 1.2,
+      "description": "Excellent weather, high foot traffic expected"
+    }
+  ]
+}

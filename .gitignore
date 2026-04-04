@@ -1,0 +1,105 @@
+# Dependencies
+node_modules/
+/.env
+/.env.local
+/.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.vscode-test/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Build outputs
+dist/
+build/
+/backend/dist
+/frontend/dist
+*.bundle.js
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Editor temp files
+*~
+.project
+.classpath
+.c9/
+*.tern-port
+
+# Testing
+coverage/
+.nyc_output/
+.mocha_output/
+
+# Optional dependency cache
+.pnpm-store/
+
+# Node
+npm-shrinkwrap.json
+
+# Database (for when migrating to real DB)
+*.db
+*.sqlite
+*.sqlite3
+*.mongo
+
+# Cache
+.cache/
+.eslintcache
+
+# System
+.env.production.local
+.env.development.local
+.env.test.local
+
+# IDE settings (specific to team)
+.settings/
+*.code-workspace
+
+# API Keys and secrets
+.apikeys
+secrets.json
+
+# Frontend specific
+/frontend/node_modules
+/frontend/.env
+/frontend/dist
+
+# Backend specific
+/backend/node_modules
+/backend/.env
+/backend/dist

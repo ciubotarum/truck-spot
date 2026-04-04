@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+.nyc_output/

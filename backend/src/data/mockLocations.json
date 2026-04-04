@@ -1,0 +1,64 @@
+{
+  "locations": [
+    {
+      "id": "loc_downtown_high_street",
+      "name": "Downtown High Street",
+      "lat": 44.4268,
+      "lng": 26.1025,
+      "zone": "downtown",
+      "capacity": "high",
+      "baseScore": 0.85,
+      "type": "business_district",
+      "parkingSpots": 15,
+      "description": "Main business district with high foot traffic during lunch and after work"
+    },
+    {
+      "id": "loc_university_square",
+      "name": "University Square",
+      "lat": 44.4397,
+      "lng": 26.0996,
+      "zone": "university",
+      "capacity": "very_high",
+      "baseScore": 0.90,
+      "type": "student_area",
+      "parkingSpots": 8,
+      "description": "University area with young demographic, peak hours 11am-3pm"
+    },
+    {
+      "id": "loc_central_park",
+      "name": "Central Park Area",
+      "lat": 44.4506,
+      "lng": 26.0979,
+      "zone": "parks",
+      "capacity": "medium",
+      "baseScore": 0.75,
+      "type": "recreational",
+      "parkingSpots": 12,
+      "description": "Popular park venue, good for weekend events and leisure crowd"
+    },
+    {
+      "id": "loc_market_square",
+      "name": "Market Square",
+      "lat": 44.4268,
+      "lng": 26.1100,
+      "zone": "market",
+      "capacity": "high",
+      "baseScore": 0.82,
+      "type": "commerce",
+      "parkingSpots": 10,
+      "description": "Traditional market area with daily shopper traffic"
+    },
+    {
+      "id": "loc_beach_area",
+      "name": "Beach Promenade",
+      "lat": 44.4000,
+      "lng": 26.0800,
+      "zone": "waterfront",
+      "capacity": "medium",
+      "baseScore": 0.78,
+      "type": "leisure",
+      "parkingSpots": 20,
+      "description": "Waterfront location, popular on weekends and evenings"
+    }
+  ]
+}
