@@ -45,6 +45,14 @@ export const recommendationService = {
   analyzeAndRecommend: (data) => api.post('/api/recommendations/analyze', data)
 };
 
+// AI Agent API
+export const agentService = {
+  healthCheck: () => api.get('/api/agents/health'),
+  analyzeLocation: (locationId, date) => api.get(`/api/agents/analyze/${locationId}/${date}`),
+  getAIRecommendations: (date) => api.get(`/api/agents/recommendations/${date}`),
+  getAIRecommendationsSummary: (date) => api.get(`/api/agents/recommendations/${date}/summary`)
+};
+
 // Health check
 export const healthCheck = () => api.get('/health');
 

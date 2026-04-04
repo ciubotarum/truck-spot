@@ -40,7 +40,7 @@ const Header = ({ date }) => {
           {/* Title and Tagline */}
           <div>
             <h1 className="fs-4 mb-0 fw-bold">
-              🚚 {import.meta.env.VITE_APP_NAME}
+              {import.meta.env.VITE_APP_NAME}
             </h1>
             <small className="text-light">{motto.tagline}</small>
           </div>

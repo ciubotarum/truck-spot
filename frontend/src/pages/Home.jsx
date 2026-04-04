@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import MapComponent from '../components/MapComponent';
 import RecommendationCard from '../components/RecommendationCard';
-import { recommendationService } from '../services/api';
+import { agentService } from '../services/api';
 
 const Home = () => {
   const [recommendations, setRecommendations] = useState([]);
@@ -20,14 +20,14 @@ const Home = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await recommendationService.getDailyRecommendations(date);
+      const response = await agentService.getAIRecommendations(date);
       setRecommendations(response.data.recommendations);
       if (response.data.recommendations.length > 0) {
         setSelectedRecommendation(response.data.recommendations[0]);
       }
     } catch (err) {
       console.error('Failed to load recommendations:', err);
-      setError('Failed to load recommendations. Please try again later.');
+      setError('Failed to load AI recommendations. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -137,9 +137,9 @@ const Home = () => {
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <div>
-                    <h5 className="card-title mb-1">⭐ Top Recommendations</h5>
+                    <h5 className="card-title mb-1">🤖 AI-Powered Recommendations</h5>
                     <small className="text-muted">
-                      Based on foot traffic, events, weather, and competition analysis
+                      Agentic AI analyzes demand, context, and revenue for optimal results
                     </small>
                   </div>
                   <button
@@ -153,7 +153,7 @@ const Home = () => {
                 {recommendations.length > 0 ? (
                   <div className="row g-3">
                     {recommendations.map((rec, idx) => (
-                      <div key={rec.locationId} className="col-md-6 col-lg-4">
+                      <div key={rec.location?.id || idx} className="col-md-6 col-lg-4">
                         <RecommendationCard
                           recommendation={rec}
                           rank={idx + 1}
@@ -175,38 +175,43 @@ const Home = () => {
               <div className="card shadow-sm border-0 bg-light-blue mb-4">
                 <div className="card-body">
                   <h5 className="card-title mb-3">
-                    💡 Why {selectedRecommendation.locationName}?
+                    💡 Why {selectedRecommendation.location?.name}?
                   </h5>
 
                   <div className="row mb-3">
                     <div className="col-md-3">
                       <div className="text-center p-3 bg-white rounded">
-                        <small className="text-muted d-block mb-2">Overall Score</small>
-                        <h4 className="text-primary mb-0">{selectedRecommendation.score}</h4>
+                        <small className="text-muted d-block mb-2">Demand Score</small>
+                        <h4 className="text-primary mb-0">
+                          {selectedRecommendation.agenticAnalysis?.decisions?.demand?.demandScore?.toFixed(2) || 'N/A'}
+                        </h4>
                       </div>
                     </div>
                     <div className="col-md-3">
                       <div className="text-center p-3 bg-white rounded">
                         <small className="text-muted d-block mb-2">Est. Revenue</small>
-                        <h4 className="text-success mb-0">€{selectedRecommendation.estimatedRevenue}</h4>
+                        <h4 className="text-success mb-0">
+                          €{selectedRecommendation.agenticAnalysis?.decisions?.revenue?.projectedDailyRevenue || 0}
+                        </h4>
                       </div>
                     </div>
                     <div className="col-md-3">
                       <div className="text-center p-3 bg-white rounded">
-                        <small className="text-muted d-block mb-2">Foot Traffic</small>
-                        <h4 className="text-warning mb-0">{selectedRecommendation.footTraffic}</h4>
+                        <small className="text-muted d-block mb-2">Context Adj.</small>
+                        <h4 className="text-warning mb-0">
+                          {selectedRecommendation.agenticAnalysis?.decisions?.context?.contextAdjustment?.toFixed(2) || '1.00'}
+                        </h4>
                       </div>
                     </div>
                     <div className="col-md-3">
                       <div className="text-center p-3 bg-white rounded">
                         <small className="text-muted d-block mb-2">Risk Level</small>
                         <h4 className={`mb-0 text-${
-                          selectedRecommendation.riskLevel === 'low' ? 'success' :
-                          selectedRecommendation.riskLevel === 'medium' ? 'warning' :
+                          selectedRecommendation.agenticAnalysis?.recommendation?.riskLevel === 'LOW' ? 'success' :
+                          selectedRecommendation.agenticAnalysis?.recommendation?.riskLevel === 'MEDIUM' ? 'warning' :
                           'danger'
                         }`}>
-                          {selectedRecommendation.riskLevel.charAt(0).toUpperCase() +
-                            selectedRecommendation.riskLevel.slice(1)}
+                          {selectedRecommendation.agenticAnalysis?.recommendation?.riskLevel || 'N/A'}
                         </h4>
                       </div>
                     </div>
@@ -214,27 +219,16 @@ const Home = () => {
 
                   <div className="row">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-2">Key Factors:</h6>
-                      <ul className="list-unstyled">
-                        {selectedRecommendation.reasons.map((reason, idx) => (
-                          <li key={idx} className="mb-1">
-                            {reason}
-                          </li>
-                        ))}
-                      </ul>
+                      <h6 className="fw-bold mb-2">🤖 Demand Analysis (AI):</h6>
+                      <p className="small text-muted">
+                        {selectedRecommendation.agenticAnalysis?.decisions?.demand?.analysis || 'No analysis available'}
+                      </p>
                     </div>
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-2">Competition Analysis:</h6>
-                      {selectedRecommendation.competitionCount > 0 ? (
-                        <p className="text-muted small">
-                          <strong>{selectedRecommendation.competitionCount}</strong> competitor(s) at this location.
-                          This may impact revenue, but high foot traffic compensates.
-                        </p>
-                      ) : (
-                        <p className="text-success small">
-                          ✓ <strong>No direct competition</strong> - Great opportunity!
-                        </p>
-                      )}
+                      <h6 className="fw-bold mb-2">🌤️ Context Analysis (AI):</h6>
+                      <p className="small text-muted">
+                        {selectedRecommendation.agenticAnalysis?.decisions?.context?.analysis || 'No analysis available'}
+                      </p>
                     </div>
                   </div>
                 </div>
