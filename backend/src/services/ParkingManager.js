@@ -1,11 +1,8 @@
 const locationsData = require('../data/mockLocations.json');
+const { getDb } = require('../db/sqlite');
+const crypto = require('crypto');
 
 class ParkingManager {
-  constructor() {
-    // date -> locationId -> Map(spotNumber -> userId)
-    this.reservationsByDate = new Map();
-  }
-
   getTotalSpots(locationId) {
     const locations = Array.isArray(locationsData) ? locationsData : locationsData.locations;
     const loc = locations.find(l => l.id === locationId);
@@ -13,38 +10,28 @@ class ParkingManager {
     return Number.isFinite(total) && total > 0 ? total : 0;
   }
 
-  ensureDateLocation(date, locationId) {
-    if (!this.reservationsByDate.has(date)) {
-      this.reservationsByDate.set(date, new Map());
-    }
-    const byLocation = this.reservationsByDate.get(date);
-    if (!byLocation.has(locationId)) {
-      byLocation.set(locationId, new Map());
-    }
-    return byLocation.get(locationId);
-  }
-
   getAvailability(date, locationId, userId = null) {
     const total = this.getTotalSpots(locationId);
-    const reservationsForLocation = this.ensureDateLocation(date, locationId);
 
-    const reserved = reservationsForLocation.size;
+    const db = getDb();
+    const rows = db.prepare(
+      'SELECT spot_number as spotNumber, user_id as userId FROM reservations WHERE date = ? AND location_id = ?'
+    ).all(date, locationId);
+
+    const reserved = rows.length;
     const available = Math.max(0, total - reserved);
 
     let mySpot = null;
     if (userId) {
-      for (const [spotNumber, spotUserId] of reservationsForLocation.entries()) {
-        if (spotUserId === userId) {
-          mySpot = spotNumber;
-          break;
-        }
-      }
+      const mine = rows.find(r => r.userId === userId);
+      mySpot = mine ? mine.spotNumber : null;
     }
 
-    const reservedSpots = Array.from(reservationsForLocation.keys()).sort((a, b) => a - b);
+    const reservedSpots = rows.map(r => r.spotNumber).sort((a, b) => a - b);
     const availableSpots = [];
+    const reservedSet = new Set(reservedSpots);
     for (let i = 1; i <= total; i += 1) {
-      if (!reservationsForLocation.has(i)) availableSpots.push(i);
+      if (!reservedSet.has(i)) availableSpots.push(i);
     }
 
     return {
@@ -73,13 +60,14 @@ class ParkingManager {
       throw err;
     }
 
-    const reservationsForLocation = this.ensureDateLocation(date, locationId);
+    const db = getDb();
 
     // Enforce at most one reservation per user per location/date.
-    for (const [existingSpot, existingUser] of reservationsForLocation.entries()) {
-      if (existingUser === userId) {
-        return { spotNumber: existingSpot, alreadyReserved: true };
-      }
+    const existing = db.prepare(
+      'SELECT spot_number as spotNumber FROM reservations WHERE date = ? AND location_id = ? AND user_id = ?'
+    ).get(date, locationId, userId);
+    if (existing?.spotNumber) {
+      return { spotNumber: existing.spotNumber, alreadyReserved: true };
     }
 
     const desired = Number(spotNumber);
@@ -89,14 +77,28 @@ class ParkingManager {
       throw err;
     }
 
-    if (reservationsForLocation.has(desired)) {
+    const id = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
+    const now = new Date().toISOString();
+
+    db.exec('BEGIN');
+    try {
+      db.prepare(
+        'INSERT INTO reservations (id, date, location_id, spot_number, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(id, date, locationId, desired, userId, now);
+
+      db.exec('COMMIT');
+      return { spotNumber: desired, alreadyReserved: false };
+    } catch (e) {
+      try {
+        db.exec('ROLLBACK');
+      } catch {
+        // ignore
+      }
+
       const err = new Error('Spot already reserved');
       err.status = 409;
       throw err;
     }
-
-    reservationsForLocation.set(desired, userId);
-    return { spotNumber: desired, alreadyReserved: false };
   }
 
   releaseSpot({ date, locationId, userId }) {
@@ -106,18 +108,36 @@ class ParkingManager {
       throw err;
     }
 
-    const reservationsForLocation = this.ensureDateLocation(date, locationId);
+    const db = getDb();
+    const existing = db.prepare(
+      'SELECT spot_number as spotNumber FROM reservations WHERE date = ? AND location_id = ? AND user_id = ?'
+    ).get(date, locationId, userId);
 
-    let releasedSpot = null;
-    for (const [spotNumber, existingUser] of reservationsForLocation.entries()) {
-      if (existingUser === userId) {
-        reservationsForLocation.delete(spotNumber);
-        releasedSpot = spotNumber;
-        break;
-      }
+    if (!existing?.spotNumber) {
+      return { releasedSpot: null };
     }
 
-    return { releasedSpot };
+    db.prepare(
+      'DELETE FROM reservations WHERE date = ? AND location_id = ? AND user_id = ?'
+    ).run(date, locationId, userId);
+
+    return { releasedSpot: existing.spotNumber };
+  }
+
+  listReservedTrucks(date, locationId) {
+    const db = getDb();
+    return db.prepare(
+      `SELECT
+         r.spot_number as spotNumber,
+         r.created_at as reservedAt,
+         p.truck_name as truckName,
+         p.cuisine as cuisine,
+         p.description as description
+       FROM reservations r
+       JOIN truck_profiles p ON p.user_id = r.user_id
+       WHERE r.date = ? AND r.location_id = ?
+       ORDER BY r.spot_number ASC`
+    ).all(date, locationId);
   }
 }
 

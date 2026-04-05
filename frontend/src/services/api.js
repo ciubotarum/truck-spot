@@ -63,12 +63,18 @@ export const agentService = {
 
 // Parking / reservations API
 export const parkingService = {
-  getAvailability: (date, locationId, userId) =>
-    api.get(`/api/parking/${date}/${locationId}`, { params: { userId } }),
-  reserveSpot: (date, locationId, userId, spotNumber) =>
-    api.post(`/api/parking/${date}/${locationId}/reserve`, { userId, spotNumber }),
-  releaseSpot: (date, locationId, userId) =>
-    api.post(`/api/parking/${date}/${locationId}/release`, { userId })
+  getAvailability: (date, locationId) =>
+    api.get(`/api/parking/${date}/${locationId}`),
+  listTrucks: (date, locationId) =>
+    api.get(`/api/parking/${date}/${locationId}/trucks`),
+  reserveSpot: (date, locationId, spotNumber) =>
+    api.post(`/api/parking/${date}/${locationId}/reserve`, { spotNumber }),
+  releaseSpot: (date, locationId) =>
+    api.post(`/api/parking/${date}/${locationId}/release`)
+};
+
+export const reservationsService = {
+  listMine: (date) => api.get('/api/reservations', { params: date ? { date } : {} })
 };
 
 // Auth (food truck owner)

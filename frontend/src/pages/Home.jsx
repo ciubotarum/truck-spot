@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import MapComponent from '../components/MapComponent';
 import RecommendationCard from '../components/RecommendationCard';
-import { agentService, parkingService, authService, setAuthToken } from '../services/api';
+import { agentService, parkingService, authService, reservationsService, setAuthToken } from '../services/api';
 
 const Home = () => {
   const [recommendations, setRecommendations] = useState([]);
@@ -17,6 +17,10 @@ const Home = () => {
   const [parkingError, setParkingError] = useState(null);
   const [parkingAvailability, setParkingAvailability] = useState(null);
   const [selectedSpotNumber, setSelectedSpotNumber] = useState('');
+
+  const [reservedTrucks, setReservedTrucks] = useState([]);
+  const [reservedTrucksLoading, setReservedTrucksLoading] = useState(false);
+  const [reservedTrucksError, setReservedTrucksError] = useState(null);
 
   const [authUser, setAuthUser] = useState(null);
   const [authProfile, setAuthProfile] = useState(null);
@@ -46,7 +50,27 @@ const Home = () => {
     }
   });
 
+  // Keep guest id for future needs; parking reservations are owner-only now.
   const effectiveUserId = authUser?.id || guestUserId;
+
+  const [myReservations, setMyReservations] = useState([]);
+  const [myReservationsLoading, setMyReservationsLoading] = useState(false);
+  const [myReservationsError, setMyReservationsError] = useState(null);
+
+  const loadMyReservations = async () => {
+    if (!authUser) return;
+    try {
+      setMyReservationsLoading(true);
+      setMyReservationsError(null);
+      const res = await reservationsService.listMine(date);
+      setMyReservations(res.data?.data || []);
+    } catch (e) {
+      setMyReservations([]);
+      setMyReservationsError(e?.response?.data?.error || 'Failed to load reservations');
+    } finally {
+      setMyReservationsLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Boot auth from localStorage token (if present)
@@ -123,7 +147,7 @@ const Home = () => {
     try {
       setParkingLoading(true);
       setParkingError(null);
-      const res = await parkingService.getAvailability(date, locationId, effectiveUserId);
+      const res = await parkingService.getAvailability(date, locationId);
       const data = res.data?.data;
       setParkingAvailability(data || null);
       setSelectedSpotNumber('');
@@ -135,14 +159,33 @@ const Home = () => {
     }
   };
 
+  const loadReservedTrucks = async (locationId) => {
+    try {
+      setReservedTrucksLoading(true);
+      setReservedTrucksError(null);
+      const res = await parkingService.listTrucks(date, locationId);
+      setReservedTrucks(res.data?.data || []);
+    } catch (e) {
+      setReservedTrucks([]);
+      setReservedTrucksError(e?.response?.data?.error || 'Failed to load reserved trucks');
+    } finally {
+      setReservedTrucksLoading(false);
+    }
+  };
+
   const reserveSelectedSpot = async (locationId) => {
     try {
       if (!selectedSpotNumber) return;
+      if (!authUser) {
+        setParkingError('Please login to reserve a spot.');
+        return;
+      }
       setParkingLoading(true);
       setParkingError(null);
-      const res = await parkingService.reserveSpot(date, locationId, effectiveUserId, Number(selectedSpotNumber));
+      const res = await parkingService.reserveSpot(date, locationId, Number(selectedSpotNumber));
       const data = res.data?.data?.availability;
       setParkingAvailability(data || null);
+      await loadMyReservations();
     } catch (e) {
       setParkingError(e?.response?.data?.error || 'Failed to reserve spot');
     } finally {
@@ -152,12 +195,17 @@ const Home = () => {
 
   const releaseMySpot = async (locationId) => {
     try {
+      if (!authUser) {
+        setParkingError('Please login to release your reservation.');
+        return;
+      }
       setParkingLoading(true);
       setParkingError(null);
-      const res = await parkingService.releaseSpot(date, locationId, effectiveUserId);
+      const res = await parkingService.releaseSpot(date, locationId);
       const data = res.data?.data?.availability;
       setParkingAvailability(data || null);
       setSelectedSpotNumber('');
+      await loadMyReservations();
     } catch (e) {
       setParkingError(e?.response?.data?.error || 'Failed to release spot');
     } finally {
@@ -246,7 +294,17 @@ const Home = () => {
     const locationId = selectedLocation?.id || selectedRecommendation?.location?.id;
     if (!locationId) return;
     loadParkingAvailability(locationId);
+    loadReservedTrucks(locationId);
   }, [isDetailsOpen, selectedRecommendation, selectedLocation, date]);
+
+  useEffect(() => {
+    if (!authUser) {
+      setMyReservations([]);
+      return;
+    }
+    loadMyReservations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser, date]);
 
   return (
     <div className="d-flex flex-column min-vh-100 bg-light">
@@ -346,6 +404,60 @@ const Home = () => {
                 </div>
               </div>
             </div>
+
+            {authUser && (
+              <div className="card shadow-sm border-0 mb-4">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                      <h5 className="card-title mb-0">My Reservations</h5>
+                      <small className="text-muted">For {date}</small>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={loadMyReservations}
+                      disabled={myReservationsLoading}
+                    >
+                      Refresh
+                    </button>
+                  </div>
+
+                  {myReservationsError && (
+                    <div className="alert alert-danger py-2 mb-2">{myReservationsError}</div>
+                  )}
+
+                  {myReservationsLoading ? (
+                    <div className="small text-muted">Loading…</div>
+                  ) : myReservations.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table table-sm mb-0">
+                        <thead>
+                          <tr>
+                            <th>Location</th>
+                            <th>Spot</th>
+                            <th>Created</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {myReservations.map((r, idx) => (
+                            <tr key={`${r.locationId}-${r.spotNumber}-${idx}`}>
+                              <td>{r.locationName || r.locationId}</td>
+                              <td>#{r.spotNumber}</td>
+                              <td className="text-muted">
+                                {r.createdAt ? new Date(r.createdAt).toLocaleTimeString() : ''}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="small text-muted">No reservations yet.</div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Recommendations Section */}
             <div className="card shadow-sm border-0 mb-4">
@@ -526,7 +638,9 @@ const Home = () => {
                             <div className="card border-0 bg-light">
                               <div className="card-body">
                                 <div className="d-flex justify-content-between align-items-center mb-2">
-                                  <h6 className="fw-bold mb-0">🅿️ Reserve a Parking Spot</h6>
+                                  <h6 className="fw-bold mb-0">
+                                    {authUser ? '🅿️ Reserve a Parking Spot' : '🍔 Food trucks here today'}
+                                  </h6>
                                   <button
                                     type="button"
                                     className="btn btn-sm btn-outline-primary"
@@ -552,41 +666,74 @@ const Home = () => {
                                       ) : null}
                                     </div>
 
-                                    <div className="row g-2 align-items-end">
-                                      <div className="col-md-6">
-                                        <label className="form-label small text-muted mb-1">Select spot</label>
-                                        <select
-                                          className="form-select"
-                                          value={selectedSpotNumber}
-                                          onChange={(e) => setSelectedSpotNumber(e.target.value)}
-                                          disabled={parkingLoading || !!parkingAvailability.mySpot}
-                                        >
-                                          <option value="">Choose an available spot…</option>
-                                          {parkingAvailability.availableSpots.map((spot) => (
-                                            <option key={spot} value={spot}>{`Spot #${spot}`}</option>
-                                          ))}
-                                        </select>
-                                      </div>
+                                    {!authUser ? (
+                                      <div className="mb-2">
+                                        {reservedTrucksError && (
+                                          <div className="alert alert-danger py-2 mb-2">{reservedTrucksError}</div>
+                                        )}
 
-                                      <div className="col-md-6 d-flex gap-2">
-                                        <button
-                                          type="button"
-                                          className="btn btn-success flex-grow-1"
-                                          onClick={() => reserveSelectedSpot(detailsLocation?.id)}
-                                          disabled={parkingLoading || !selectedSpotNumber || !!parkingAvailability.mySpot}
-                                        >
-                                          Reserve
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="btn btn-outline-danger"
-                                          onClick={() => releaseMySpot(detailsLocation?.id)}
-                                          disabled={parkingLoading || !parkingAvailability.mySpot}
-                                        >
-                                          Release
-                                        </button>
+                                        {reservedTrucksLoading ? (
+                                          <div className="small text-muted">Loading trucks…</div>
+                                        ) : reservedTrucks.length > 0 ? (
+                                          <div className="list-group">
+                                            {reservedTrucks.map((t, idx) => (
+                                              <div key={`${t.spotNumber}-${idx}`} className="list-group-item">
+                                                <div className="d-flex justify-content-between align-items-start">
+                                                  <div>
+                                                    <div className="fw-bold">{t.truckName || 'Food truck'}</div>
+                                                    <div className="small text-muted">
+                                                      {t.cuisine ? t.cuisine : 'Cuisine not specified'}
+                                                    </div>
+                                                  </div>
+                                                  <span className="badge text-bg-secondary">Spot #{t.spotNumber}</span>
+                                                </div>
+                                                {t.description ? (
+                                                  <div className="small text-muted mt-2">{t.description}</div>
+                                                ) : null}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <div className="small text-muted">No food trucks reserved here yet.</div>
+                                        )}
                                       </div>
-                                    </div>
+                                    ) : (
+                                      <div className="row g-2 align-items-end">
+                                        <div className="col-md-6">
+                                          <label className="form-label small text-muted mb-1">Select spot</label>
+                                          <select
+                                            className="form-select"
+                                            value={selectedSpotNumber}
+                                            onChange={(e) => setSelectedSpotNumber(e.target.value)}
+                                            disabled={parkingLoading || !!parkingAvailability.mySpot}
+                                          >
+                                            <option value="">Choose an available spot…</option>
+                                            {parkingAvailability.availableSpots.map((spot) => (
+                                              <option key={spot} value={spot}>{`Spot #${spot}`}</option>
+                                            ))}
+                                          </select>
+                                        </div>
+
+                                        <div className="col-md-6 d-flex gap-2">
+                                          <button
+                                            type="button"
+                                            className="btn btn-success flex-grow-1"
+                                            onClick={() => reserveSelectedSpot(detailsLocation?.id)}
+                                            disabled={parkingLoading || !selectedSpotNumber || !!parkingAvailability.mySpot}
+                                          >
+                                            Reserve
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="btn btn-outline-danger"
+                                            onClick={() => releaseMySpot(detailsLocation?.id)}
+                                            disabled={parkingLoading || !parkingAvailability.mySpot}
+                                          >
+                                            Release
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                   </>
                                 ) : (
                                   <div className="small text-muted">

@@ -24,7 +24,23 @@ const requireAuth = (req, res, next) => {
   }
 };
 
+const optionalAuth = (req, res, next) => {
+  try {
+    const header = req.headers.authorization || '';
+    const [scheme, token] = header.split(' ');
+    if (scheme !== 'Bearer' || !token) return next();
+
+    const payload = jwt.verify(token, getJwtSecret());
+    req.user = { id: payload.sub, email: payload.email };
+    return next();
+  } catch {
+    // Ignore invalid tokens for optional auth.
+    return next();
+  }
+};
+
 module.exports = {
   requireAuth,
+  optionalAuth,
   getJwtSecret
 };

@@ -25,6 +25,7 @@ app.use('/api/recommendations', require('./routes/recommendations'));
 app.use('/api/agents', require('./routes/agentRoutes'));
 app.use('/api/parking', require('./routes/parking'));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/reservations', require('./routes/reservations'));
 
 // 404 Handler
 app.use((req, res) => {
