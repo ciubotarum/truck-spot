@@ -2,6 +2,7 @@ const Groq = require('groq-sdk');
 const DemandAgent = require('./DemandAgent');
 const ContextAgent = require('./ContextAgent');
 const RevenueCalculator = require('../services/RevenueCalculator');
+const CacheManager = require('../services/CacheManager');
 
 class AgenticOrchestrator {
   constructor(apiKey) {
@@ -12,6 +13,7 @@ class AgenticOrchestrator {
     this.demandAgent = new DemandAgent(apiKey);
     this.contextAgent = new ContextAgent(apiKey);
     this.revenueCalculator = new RevenueCalculator();
+    this.cacheManager = CacheManager;
   }
 
   async callGroqAPI(prompt, systemPrompt = null) {
@@ -88,9 +90,24 @@ What should be the next action? Return JSON.`;
 
   async analyzeWithAgenticAI(locations, date) {
     this.date = date;
+
+    // ===== CACHE CHECK =====
+    // Check if we have valid cached recommendations for this date
+    const cachedResult = this.cacheManager.get(date);
+    if (cachedResult) {
+      console.log(`\n${'='.repeat(60)}`);
+      console.log(` AGENTIC AI ORCHESTRATOR - Using Cached Results`);
+      console.log(`${'='.repeat(60)}\n`);
+      console.log(`✓ CACHE HIT: Returning cached recommendations for ${date}`);
+      console.log(`  (No data changes detected, saving Groq API calls)\n`);
+      return { ...cachedResult, cached: true };
+    }
+    // ======================
+
     console.log(`\n${'='.repeat(60)}`);
     console.log(` AGENTIC AI ORCHESTRATOR - Intelligent Analysis`);
     console.log(`${'='.repeat(60)}\n`);
+    console.log(`No valid cache found, running fresh analysis...\n`);
 
     const results = [];
 
@@ -157,7 +174,7 @@ What should be the next action? Return JSON.`;
 
     results.sort((a, b) => b.agenticAnalysis.decisions.revenue?.projectedDailyRevenue - a.agenticAnalysis.decisions.revenue?.projectedDailyRevenue);
 
-    return {
+    const responseData = {
       success: true,
       type: 'agentic_ai',
       date: date,
@@ -166,8 +183,16 @@ What should be the next action? Return JSON.`;
       totalLocationsAnalyzed: locations.length,
       recommendations: results,
       topRecommendation: results[0],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      cached: false
     };
+
+    // ===== CACHE STORE =====
+    // Store the fresh analysis in cache for future requests
+    this.cacheManager.set(date, { ...responseData });
+    // ======================
+
+    return responseData;
   }
 
   calculateFinalScore(analysisState) {
