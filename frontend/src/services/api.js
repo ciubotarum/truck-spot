@@ -18,6 +18,14 @@ export const setAuthToken = (token) => {
   }
 };
 
+// Boot token on initial load (so deep links still auth correctly)
+try {
+  const existingToken = window.localStorage.getItem('truckspot_auth_token');
+  if (existingToken) setAuthToken(existingToken);
+} catch {
+  // ignore
+}
+
 // Request interceptor
 api.interceptors.request.use(
   config => {
@@ -83,6 +91,16 @@ export const authService = {
     api.post('/api/auth/register', { email, password, truckName, cuisine, description, phone }),
   login: ({ email, password }) => api.post('/api/auth/login', { email, password }),
   me: () => api.get('/api/auth/me')
+};
+
+// Trucks (public + owner)
+export const truckService = {
+  getTruck: (truckId) => api.get(`/api/trucks/${truckId}`),
+  getMyProfile: () => api.get('/api/trucks/me/profile'),
+  getMyMenu: () => api.get('/api/trucks/me/menu'),
+  addMyMenuItem: ({ name, price, currency = 'EUR', description = null }) =>
+    api.post('/api/trucks/me/menu', { name, price, currency, description }),
+  deleteMyMenuItem: (itemId) => api.delete(`/api/trucks/me/menu/${itemId}`)
 };
 
 // Health check

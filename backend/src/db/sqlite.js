@@ -49,6 +49,21 @@ const ensureDb = () => {
       UNIQUE(date, location_id, user_id)
     );
 
+    CREATE TABLE IF NOT EXISTS menu_items (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      price_cents INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      description TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_menu_items_user
+      ON menu_items(user_id);
+
     CREATE INDEX IF NOT EXISTS idx_reservations_lookup
       ON reservations(date, location_id);
   `);

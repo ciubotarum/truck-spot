@@ -130,6 +130,7 @@ class ParkingManager {
       `SELECT
          r.spot_number as spotNumber,
          r.created_at as reservedAt,
+         r.user_id as truckId,
          p.truck_name as truckName,
          p.cuisine as cuisine,
          p.description as description

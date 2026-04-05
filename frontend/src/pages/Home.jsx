@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import MapComponent from '../components/MapComponent';
 import RecommendationCard from '../components/RecommendationCard';
@@ -283,8 +284,7 @@ const Home = () => {
     document.body.classList.add('modal-open');
     window.addEventListener('keydown', onKeyDown);
     return () => {
-      const stillOpen = isDetailsOpen || isAuthOpen;
-      if (!stillOpen) document.body.classList.remove('modal-open');
+      document.body.classList.remove('modal-open');
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [isDetailsOpen, isAuthOpen]);
@@ -677,7 +677,19 @@ const Home = () => {
                                         ) : reservedTrucks.length > 0 ? (
                                           <div className="list-group">
                                             {reservedTrucks.map((t, idx) => (
-                                              <div key={`${t.spotNumber}-${idx}`} className="list-group-item">
+                                              <Link
+                                                key={`${t.spotNumber}-${idx}`}
+                                                to={t.truckId ? `/trucks/${t.truckId}` : '#'}
+                                                className={`list-group-item list-group-item-action${t.truckId ? '' : ' disabled'}`}
+                                                onClick={(e) => {
+                                                  if (!t.truckId) {
+                                                    e.preventDefault();
+                                                    return;
+                                                  }
+                                                  // Close modal before navigating.
+                                                  closeDetails();
+                                                }}
+                                              >
                                                 <div className="d-flex justify-content-between align-items-start">
                                                   <div>
                                                     <div className="fw-bold">{t.truckName || 'Food truck'}</div>
@@ -690,7 +702,7 @@ const Home = () => {
                                                 {t.description ? (
                                                   <div className="small text-muted mt-2">{t.description}</div>
                                                 ) : null}
-                                              </div>
+                                              </Link>
                                             ))}
                                           </div>
                                         ) : (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import motto from '../data/motto.json';
 
 const Header = ({ date, authUser, authProfile, onOpenAuth, onLogout }) => {
@@ -60,6 +61,12 @@ const Header = ({ date, authUser, authProfile, onOpenAuth, onLogout }) => {
                   <strong className="small">
                     {authProfile?.truckName || authUser.email}
                   </strong>
+                  <Link
+                    to={`/trucks/${authUser.id}`}
+                    className="btn btn-sm btn-outline-light"
+                  >
+                    My Truck
+                  </Link>
                   <button
                     type="button"
                     className="btn btn-sm btn-outline-light"
