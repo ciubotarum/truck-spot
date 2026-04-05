@@ -39,11 +39,21 @@ class DemandAgent {
   /**
    * Analyze demand for a location
    */
-  async analyzeDemand(location, footTraffic, events) {
+  async analyzeDemand(location, footTraffic, events, truckContext = null) {
     try {
+      const menuLine = truckContext?.menuSummary?.length
+        ? `Menu (RON): ${truckContext.menuSummary.map(i => `${i.name} ${i.price}`).join(', ')}.`
+        : 'Menu (RON): not provided.';
+
+      const avgLine = truckContext?.avgItemPriceRON
+        ? `Average menu price: ~${truckContext.avgItemPriceRON} RON.`
+        : '';
+
       const prompt = `Analyze location demand. Location: ${location.name}. 
       Foot traffic: ${footTraffic.current} people/hour. 
       Events: ${events.length > 0 ? events.map(e => e.name).join(', ') : 'None'}.
+      ${menuLine} ${avgLine}
+      Consider how the menu and pricing might affect purchase intent (broad popularity/appeal). 
       Rate demand on scale 0-100 and explain your reasoning in 1-2 sentences:`;
 
       console.log(`[DEMAND AGENT] Analyzing demand for ${location.name} via Groq...`);

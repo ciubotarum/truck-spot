@@ -96,13 +96,23 @@ const Home = () => {
 
   useEffect(() => {
     loadRecommendations();
-  }, [date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, authUser?.id]);
 
   const loadRecommendations = async () => {
     try {
+      if (!authUser) {
+        // Guests should not see AI recommendations.
+        setRecommendations([]);
+        setSelectedRecommendation(null);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
-      const response = await agentService.getAIRecommendations(date);
+      const response = await agentService.getMyAIRecommendations(date);
       setRecommendations(response.data.recommendations);
       if (response.data.recommendations.length > 0) {
         setSelectedRecommendation(response.data.recommendations[0]);
@@ -178,7 +188,7 @@ const Home = () => {
     try {
       if (!selectedSpotNumber) return;
       if (!authUser) {
-        setParkingError('Please login to reserve a spot.');
+        openAuth('login');
         return;
       }
       setParkingLoading(true);
@@ -197,7 +207,7 @@ const Home = () => {
   const releaseMySpot = async (locationId) => {
     try {
       if (!authUser) {
-        setParkingError('Please login to release your reservation.');
+        openAuth('login');
         return;
       }
       setParkingLoading(true);
@@ -319,6 +329,23 @@ const Home = () => {
 
       {/* Main Content */}
       <main className="container-lg py-4 flex-grow-1">
+        {/* Welcome Banner for Guests */}
+        {!authUser && (
+          <div className="card border-0 mb-4" style={{ backgroundColor: '#4f46e5' }}>
+            <div className="card-body py-4">
+              <div className="row align-items-center">
+                <div className="col-lg-12">
+                  <h2 className="text-white mb-2">Welcome to TruckSpot</h2>
+                  <p className="text-white mb-0">
+                    Find the best food trucks in your area, or if you're a truck owner, 
+                    get AI-powered recommendations on where to sell.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Error Alert */}
         {error && (
           <div className="alert alert-danger alert-dismissible fade show" role="alert">
@@ -349,7 +376,10 @@ const Home = () => {
               <div className="col-lg-8">
                 <div className="card shadow-sm border-0 h-100">
                   <div className="card-body">
-                    <h5 className="card-title mb-3">📍 Location Map</h5>
+                    <h5 className="card-title mb-3">📍 Find Food Trucks Near You</h5>
+                    <div className="small text-muted mb-2">
+                      {authUser ? 'Click a marker to see available parking spots.' : 'Click a marker to see food trucks available today.'}
+                    </div>
                     <MapComponent
                       recommendations={recommendations}
                       onLocationSelect={handleLocationSelect}
@@ -395,8 +425,8 @@ const Home = () => {
                     ) : (
                       <div className="text-center text-muted flex-grow-1 d-flex align-items-center justify-content-center">
                         <div>
-                          <p className="mb-0">Click on a location marker on the map</p>
-                          <small>to view detailed information</small>
+                          <p className="mb-0 fw-bold">Click on a location marker</p>
+                          <small>{authUser ? 'to view parking spots and availability' : 'to see which food trucks are there today'}</small>
                         </div>
                       </div>
                     )}
@@ -404,6 +434,34 @@ const Home = () => {
                 </div>
               </div>
             </div>
+
+            {/* Feature Cards for Guests */}
+            {!authUser && (
+              <div className="row g-3 mb-4">
+                <div className="col-md-6">
+                  <div className="card border-0 h-100" style={{ background: '#f8f9fa' }}>
+                    <div className="card-body">
+                      <h6 className="fw-bold mb-2">🍔 For Food Lovers</h6>
+                      <p className="small text-muted mb-0">
+                        Browse the map to find food trucks near you. Click on any location marker to see 
+                        which trucks are serving there today.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="card border-0 h-100" style={{ background: '#f8f9fa' }}>
+                    <div className="card-body">
+                      <h6 className="fw-bold mb-2">🚚 For Truck Owners</h6>
+                      <p className="small text-muted mb-0">
+                        Get AI-powered recommendations on the best locations to sell, 
+                        based on demand, competition, and more. Login or register to get started.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {authUser && (
               <div className="card shadow-sm border-0 mb-4">
@@ -459,43 +517,45 @@ const Home = () => {
               </div>
             )}
 
-            {/* Recommendations Section */}
-            <div className="card shadow-sm border-0 mb-4">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div>
-                    <h5 className="card-title mb-1">🤖 AI-Powered Recommendations</h5>
-                    <small className="text-muted">
-                      Agentic AI analyzes demand, context, and revenue for optimal results
-                    </small>
+            {/* Recommendations Section (owners only) */}
+            {authUser ? (
+              <div className="card shadow-sm border-0 mb-4">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h5 className="card-title mb-1">🤖 AI-Powered Recommendations</h5>
+                      <small className="text-muted">
+                        Personalized for your truck using your menu prices (gross estimate)
+                      </small>
+                    </div>
+                    <button
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={loadRecommendations}
+                    >
+                      🔄 Refresh
+                    </button>
                   </div>
-                  <button
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={loadRecommendations}
-                  >
-                    🔄 Refresh
-                  </button>
-                </div>
 
-                {recommendations.length > 0 ? (
-                  <div className="row g-3">
-                    {recommendations.map((rec, idx) => (
-                      <div key={rec.location?.id || idx} className="col-md-6 col-lg-4">
-                        <RecommendationCard
-                          recommendation={rec}
-                          rank={idx + 1}
-                          onSelect={handleRecommendationSelect}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="alert alert-info mb-0">
-                    No recommendations available for this date.
-                  </div>
-                )}
+                  {recommendations.length > 0 ? (
+                    <div className="row g-3">
+                      {recommendations.map((rec, idx) => (
+                        <div key={rec.location?.id || idx} className="col-md-6 col-lg-4">
+                          <RecommendationCard
+                            recommendation={rec}
+                            rank={idx + 1}
+                            onSelect={handleRecommendationSelect}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="alert alert-info mb-0">
+                      No recommendations available for this date.
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : null}
 
             {/* Selected Recommendation Details */}
             {isDetailsOpen && (selectedLocation || selectedRecommendation) && (
@@ -554,85 +614,90 @@ const Home = () => {
                             </div>
                           </div>
 
-                          <div className="col-md-6">
-                            <div className="card border-0 bg-light">
-                              <div className="card-body">
-                                <h6 className="fw-bold mb-2">🤖 AI Summary</h6>
-                                {hasRecommendation ? (
-                                  <div className="row g-2">
-                                    <div className="col-6">
-                                      <div className="p-2 bg-white rounded text-center">
-                                        <small className="text-muted d-block">Demand</small>
-                                        <div className="fw-bold">
-                                          {selectedRecommendation.agenticAnalysis?.decisions?.demand?.demandScore?.toFixed(2) || 'N/A'}
+                          {authUser ? (
+                            <div className="col-md-6">
+                              <div className="card border-0 bg-light">
+                                <div className="card-body">
+                                  <h6 className="fw-bold mb-2">🤖 AI Summary</h6>
+                                  {hasRecommendation ? (
+                                    <div className="row g-2">
+                                      <div className="col-6">
+                                        <div className="p-2 bg-white rounded text-center">
+                                          <small className="text-muted d-block">Demand</small>
+                                          <div className="fw-bold">
+                                            {selectedRecommendation.agenticAnalysis?.decisions?.demand?.demandScore?.toFixed(2) || 'N/A'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="col-6">
+                                        <div className="p-2 bg-white rounded text-center">
+                                          <small className="text-muted d-block">Context Adj.</small>
+                                          <div className="fw-bold">
+                                            {selectedRecommendation.agenticAnalysis?.decisions?.context?.contextAdjustment?.toFixed(2) || '1.00'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="col-6">
+                                        <div className="p-2 bg-white rounded text-center">
+                                          <small className="text-muted d-block">Gross Revenue</small>
+                                          <div className="fw-bold text-success">
+                                            {(selectedRecommendation.agenticAnalysis?.decisions?.revenue?.currency || 'RON')}{' '}
+                                            {selectedRecommendation.agenticAnalysis?.decisions?.revenue?.projectedDailyRevenue || 0}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="col-6">
+                                        <div className="p-2 bg-white rounded text-center">
+                                          <small className="text-muted d-block">Risk</small>
+                                          <div className="fw-bold">
+                                            {selectedRecommendation.agenticAnalysis?.recommendation?.riskLevel || 'N/A'}
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="col-6">
-                                      <div className="p-2 bg-white rounded text-center">
-                                        <small className="text-muted d-block">Context Adj.</small>
-                                        <div className="fw-bold">
-                                          {selectedRecommendation.agenticAnalysis?.decisions?.context?.contextAdjustment?.toFixed(2) || '1.00'}
-                                        </div>
-                                      </div>
+                                  ) : (
+                                    <div className="small text-muted">
+                                      No AI recommendation details for this location.
                                     </div>
-                                    <div className="col-6">
-                                      <div className="p-2 bg-white rounded text-center">
-                                        <small className="text-muted d-block">Est. Revenue</small>
-                                        <div className="fw-bold text-success">
-                                          €{selectedRecommendation.agenticAnalysis?.decisions?.revenue?.projectedDailyRevenue || 0}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="col-6">
-                                      <div className="p-2 bg-white rounded text-center">
-                                        <small className="text-muted d-block">Risk</small>
-                                        <div className="fw-bold">
-                                          {selectedRecommendation.agenticAnalysis?.recommendation?.riskLevel || 'N/A'}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="small text-muted">
-                                    No AI recommendation details for this location.
-                                  </div>
-                                )}
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          ) : null}
 
-                          <div className="col-12">
-                            <div className="card border-0">
-                              <div className="card-body p-0">
-                                <h6 className="fw-bold mb-2">🧠 AI Reasoning</h6>
-                                {hasRecommendation ? (
-                                  <div className="row g-3">
-                                    <div className="col-md-6">
-                                      <div className="p-3 bg-light rounded">
-                                        <div className="small fw-bold mb-2">Demand</div>
-                                        <div className="small text-muted">
-                                          {selectedRecommendation.agenticAnalysis?.decisions?.demand?.analysis || 'No demand analysis available.'}
+                          {authUser ? (
+                            <div className="col-12">
+                              <div className="card border-0">
+                                <div className="card-body p-0">
+                                  <h6 className="fw-bold mb-2">🧠 AI Reasoning</h6>
+                                  {hasRecommendation ? (
+                                    <div className="row g-3">
+                                      <div className="col-md-6">
+                                        <div className="p-3 bg-light rounded">
+                                          <div className="small fw-bold mb-2">Demand</div>
+                                          <div className="small text-muted">
+                                            {selectedRecommendation.agenticAnalysis?.decisions?.demand?.analysis || 'No demand analysis available.'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="col-md-6">
+                                        <div className="p-3 bg-light rounded">
+                                          <div className="small fw-bold mb-2">Context</div>
+                                          <div className="small text-muted">
+                                            {selectedRecommendation.agenticAnalysis?.decisions?.context?.analysis || 'No context analysis available.'}
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="col-md-6">
-                                      <div className="p-3 bg-light rounded">
-                                        <div className="small fw-bold mb-2">Context</div>
-                                        <div className="small text-muted">
-                                          {selectedRecommendation.agenticAnalysis?.decisions?.context?.analysis || 'No context analysis available.'}
-                                        </div>
-                                      </div>
+                                  ) : (
+                                    <div className="small text-muted">
+                                      Open the recommendation card for this location to see AI reasoning.
                                     </div>
-                                  </div>
-                                ) : (
-                                  <div className="small text-muted">
-                                    Open the recommendation card for this location to see AI reasoning.
-                                  </div>
-                                )}
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          ) : null}
 
                           <div className="col-12">
                             <div className="card border-0 bg-light">
@@ -939,10 +1004,25 @@ const Home = () => {
 
       {/* Footer */}
       <footer className="bg-dark text-light py-3 mt-4">
-        <div className="container-lg text-center">
-          <small className="text-muted">
-            TruckSpot © 2026 | Intelligent Location Recommendations for Food Trucks
-          </small>
+        <div className="container-lg">
+          <div className="row text-center text-md-start">
+            <div className="col-md-4 mb-3 mb-md-0">
+              <h6 className="text-white mb-2">TruckSpot</h6>
+              <small className="text-muted d-block">Intelligent location recommendations for food trucks</small>
+            </div>
+            <div className="col-md-4 mb-3 mb-md-0">
+              <h6 className="text-white mb-2">For Owners</h6>
+              <small className="text-muted d-block">AI-powered recommendations to maximize your revenue</small>
+            </div>
+            <div className="col-md-4">
+              <h6 className="text-white mb-2">For Customers</h6>
+              <small className="text-muted d-block">Find the best food trucks near you</small>
+            </div>
+          </div>
+          <hr className="border-secondary" />
+          <div className="text-center">
+            <small className="text-muted">© 2026 TruckSpot</small>
+          </div>
         </div>
       </footer>
     </div>

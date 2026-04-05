@@ -21,7 +21,7 @@ const TruckDetails = () => {
   const [newItem, setNewItem] = useState({
     name: '',
     price: '',
-    currency: 'EUR',
+    currency: 'RON',
     description: ''
   });
 
@@ -115,11 +115,11 @@ const TruckDetails = () => {
       await truckService.addMyMenuItem({
         name: newItem.name,
         price: newItem.price,
-        currency: newItem.currency,
+        currency: 'RON',
         description: newItem.description || null
       });
 
-      setNewItem({ name: '', price: '', currency: 'EUR', description: '' });
+      setNewItem({ name: '', price: '', currency: 'RON', description: '' });
       await loadMyMenu();
     } catch (e2) {
       setMenuError(e2?.response?.data?.error || 'Failed to add menu item');
@@ -200,16 +200,6 @@ const TruckDetails = () => {
                   ) : null}
                 </div>
               </div>
-
-              {!authUser ? (
-                <div className="alert alert-info mt-3 mb-0">
-                  Want to manage this truck’s menu? Login from the home page.
-                </div>
-              ) : !isOwner ? (
-                <div className="alert alert-info mt-3 mb-0">
-                  You’re logged in, but only the owner can edit this menu.
-                </div>
-              ) : null}
             </div>
 
             <div className="col-lg-7">
@@ -284,11 +274,7 @@ const TruckDetails = () => {
                         </div>
                         <div className="col-md-3">
                           <label className="form-label small text-muted mb-1">Currency</label>
-                          <input
-                            className="form-control"
-                            value={newItem.currency}
-                            onChange={(e) => setNewItem((s) => ({ ...s, currency: e.target.value }))}
-                          />
+                          <input className="form-control" value="RON" readOnly />
                         </div>
                         <div className="col-12">
                           <label className="form-label small text-muted mb-1">Description (optional)</label>

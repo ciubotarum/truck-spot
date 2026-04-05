@@ -88,17 +88,22 @@ What should be the next action? Return JSON.`;
     });
   }
 
-  async analyzeWithAgenticAI(locations, date) {
+  async analyzeWithAgenticAI(locations, date, options = {}) {
     this.date = date;
+
+    const cacheKey = options.cacheKey || date;
+    const truckId = options.truckId || null;
+    const pricing = options.pricing || null;
+    const menuSummary = options.menuSummary || null;
 
     // ===== CACHE CHECK =====
     // Check if we have valid cached recommendations for this date
-    const cachedResult = this.cacheManager.get(date);
+    const cachedResult = this.cacheManager.get(cacheKey);
     if (cachedResult) {
       console.log(`\n${'='.repeat(60)}`);
       console.log(` AGENTIC AI ORCHESTRATOR - Using Cached Results`);
       console.log(`${'='.repeat(60)}\n`);
-      console.log(`✓ CACHE HIT: Returning cached recommendations for ${date}`);
+      console.log(`✓ CACHE HIT: Returning cached recommendations for ${cacheKey}`);
       console.log(`  (No data changes detected, saving Groq API calls)\n`);
       return { ...cachedResult, cached: true };
     }
@@ -119,7 +124,14 @@ What should be the next action? Return JSON.`;
         footTraffic: this.getFootTrafficData(location.id),
         events: this.getEventsData(location.id),
         competition: this.getCompetitionData(location.id),
-        weather: this.getWeatherData(date)
+        weather: this.getWeatherData(date),
+        truck: truckId
+          ? {
+            truckId,
+            pricing,
+            menuSummary
+          }
+          : null
       };
 
       const analysisState = {
@@ -134,7 +146,19 @@ What should be the next action? Return JSON.`;
 
       console.log(`  ⚡ Running demand & context in parallel...`);
       const [demandResult, contextResult] = await Promise.all([
-        this.demandAgent.analyzeDemand(location, context.footTraffic, context.events),
+        this.demandAgent.analyzeDemand(
+          location,
+          context.footTraffic,
+          context.events,
+          context.truck
+            ? {
+              menuSummary: context.truck.menuSummary || [],
+              avgItemPriceRON: context.truck.pricing?.avgItemPriceCents
+                ? (context.truck.pricing.avgItemPriceCents / 100).toFixed(2)
+                : null
+            }
+            : null
+        ),
         this.contextAgent.analyzeContext(location, context.weather, context.competition, location.capacity)
       ]);
 
@@ -145,12 +169,35 @@ What should be the next action? Return JSON.`;
       console.log(`  ⚡ Calculating revenue...`);
       const demandScore = analysisState.demand?.demandScore || 0.5;
       const contextAdjustment = analysisState.context?.contextAdjustment || 1.0;
+
+      // Full-day estimation based on foot traffic/hour.
+      const hoursOpen = Number.isFinite(options.hoursOpen) ? options.hoursOpen : 8;
+      const footPerHour = Number(context.footTraffic?.current) || 100;
+      const dailyFootTraffic = Math.max(0, footPerHour * hoursOpen);
+      // Conversion rate derived from demandScore: 2%..20%.
+      const conversionRate = Math.max(0.02, Math.min(0.2, 0.02 + (demandScore * 0.18)));
+      const estimatedTransactions = Math.max(0, Math.round(dailyFootTraffic * conversionRate * contextAdjustment));
+
       analysisState.revenue = this.revenueCalculator.projectRevenue(
         location,
         demandScore,
-        contextAdjustment
+        contextAdjustment,
+        context.truck?.pricing
+          ? {
+            avgTicketCents: context.truck.pricing.avgItemPriceCents,
+            currency: context.truck.pricing.currency || 'RON',
+            pricingBasis: context.truck.pricing.usedDefaultPricing ? 'default' : 'menu',
+            estimatedTransactions,
+            assumptions: {
+              hoursOpen,
+              footTrafficPerHour: footPerHour,
+              dailyFootTraffic,
+              conversionRate
+            }
+          }
+          : { currency: 'RON' }
       );
-      console.log(`     ✓ Revenue calculated: $${analysisState.revenue.projectedDailyRevenue}`);
+      console.log(`     ✓ Revenue calculated: ${analysisState.revenue.currency || 'RON'} ${analysisState.revenue.projectedDailyRevenue}`);
 
       const finalScore = this.calculateFinalScore(analysisState);
       const finalRecommendation = this.generateRecommendation(finalScore, analysisState);
@@ -189,7 +236,7 @@ What should be the next action? Return JSON.`;
 
     // ===== CACHE STORE =====
     // Store the fresh analysis in cache for future requests
-    this.cacheManager.set(date, { ...responseData });
+    this.cacheManager.set(cacheKey, { ...responseData });
     // ======================
 
     return responseData;

@@ -94,7 +94,7 @@ const RecommendationCard = ({ recommendation, rank, onSelect }) => {
           <div className="col-4 text-center">
             <div className="metric-box">
               <div className="metric-revenue" style={{ color: '#198754', fontSize: '24px', fontWeight: 'bold' }}>
-                €{revenue.projectedDailyRevenue || 0}
+                {(revenue.currency || 'RON')} {revenue.projectedDailyRevenue || 0}
               </div>
               <small className="text-muted d-block">Revenue</small>
             </div>

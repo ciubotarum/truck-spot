@@ -59,6 +59,18 @@
       "type": "leisure",
       "parkingSpots": 20,
       "description": "Waterfront location, popular on weekends and evenings"
+    },
+    {
+      "id": "loc_residential_transit_hub",
+      "name": "Residential Transit Hub",
+      "lat": 44.4185,
+      "lng": 26.0932,
+      "zone": "residential",
+      "capacity": "medium",
+      "baseScore": 0.66,
+      "type": "transit_commuter",
+      "parkingSpots": 6,
+      "description": "Commuter-heavy residential area with steady, regular foot traffic and no scheduled events"
     }
   ]
 }

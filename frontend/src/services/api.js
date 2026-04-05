@@ -66,6 +66,7 @@ export const agentService = {
   healthCheck: () => api.get('/api/agents/health'),
   analyzeLocation: (locationId, date) => api.get(`/api/agents/analyze/${locationId}/${date}`),
   getAIRecommendations: (date) => api.get(`/api/agents/recommendations/${date}`),
+  getMyAIRecommendations: (date) => api.get(`/api/agents/recommendations/${date}/mine`),
   getAIRecommendationsSummary: (date) => api.get(`/api/agents/recommendations/${date}/summary`)
 };
 

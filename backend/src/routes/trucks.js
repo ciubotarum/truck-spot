@@ -61,10 +61,15 @@ router.get('/me/menu', requireAuth, (req, res) => {
 router.post('/me/menu', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const { name, price, currency = 'EUR', description = null } = req.body || {};
+    const { name, price, currency = 'RON', description = null } = req.body || {};
 
     if (!name || !String(name).trim()) {
       return res.status(400).json({ success: false, error: 'Menu item name is required' });
+    }
+
+    const normalizedCurrency = String(currency || 'RON').trim().toUpperCase();
+    if (normalizedCurrency !== 'RON') {
+      return res.status(400).json({ success: false, error: 'Currency must be RON' });
     }
 
     const priceCents = normalizePriceToCents(price);
@@ -78,7 +83,7 @@ router.post('/me/menu', requireAuth, (req, res) => {
     db.prepare(
       `INSERT INTO menu_items (id, user_id, name, price_cents, currency, description, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, req.user.id, String(name).trim(), priceCents, String(currency || 'EUR').trim(), description, now, now);
+    ).run(id, req.user.id, String(name).trim(), priceCents, 'RON', description, now, now);
 
     return res.json({
       success: true,
@@ -87,7 +92,7 @@ router.post('/me/menu', requireAuth, (req, res) => {
         name: String(name).trim(),
         priceCents,
         price: (priceCents / 100).toFixed(2),
-        currency: String(currency || 'EUR').trim(),
+        currency: 'RON',
         description
       },
       timestamp: now

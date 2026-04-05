@@ -55,6 +55,14 @@
       "peakHours": ["17", "18", "19", "20"],
       "estimatedPedestrians": 950,
       "trafficTrend": "rising"
+    },
+    {
+      "locationId": "loc_residential_transit_hub",
+      "date": "2026-04-04",
+      "hour": "08",
+      "peakHours": ["07", "08", "17", "18"],
+      "estimatedPedestrians": 420,
+      "trafficTrend": "stable"
     }
   ]
 }

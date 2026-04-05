@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const AgenticOrchestrator = require('../agents/AgenticOrchestrator');
 const CacheManager = require('../services/CacheManager');
+const { requireAuth } = require('../middleware/auth');
+const TruckPricingService = require('../services/TruckPricingService');
 
 const apiKey = process.env.GROQ_API_KEY;
 const orchestrator = new AgenticOrchestrator(apiKey);
@@ -79,7 +81,7 @@ router.post('/cache/clear', (req, res) => {
   }
 });
 
-router.get('/recommendations/:date', async (req, res) => {
+router.get('/recommendations/:date', requireAuth, async (req, res) => {
   try {
     const { date } = req.params;
     
@@ -103,6 +105,54 @@ router.get('/recommendations/:date', async (req, res) => {
     console.error('[ROUTE ERROR] /recommendations:', error.message);
     res.status(500).json({
       error: 'Failed to generate recommendations',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Owner-specific recommendations (menu-priced revenue)
+// GET /api/agents/recommendations/:date/mine
+router.get('/recommendations/:date/mine', requireAuth, async (req, res) => {
+  try {
+    const { date } = req.params;
+    const truckId = req.user.id;
+
+    const mockData = require('../data/mockLocations.json');
+    const mockLocations = Array.isArray(mockData) ? mockData : mockData.locations;
+
+    const pricing = TruckPricingService.getMenuStats(truckId);
+    const menuSummary = TruckPricingService.getMenuSummary(truckId, 5);
+    const fingerprint = TruckPricingService.getMenuFingerprint(truckId);
+    const cacheKey = `mine:${date}:${truckId}:${fingerprint}`;
+
+    const startTime = Date.now();
+    const result = await orchestrator.analyzeWithAgenticAI(mockLocations, date, {
+      cacheKey,
+      truckId,
+      pricing,
+      menuSummary
+    });
+    const duration = Date.now() - startTime;
+
+    // Check if result came from cache (by key)
+    const cachedResult = CacheManager.get(cacheKey);
+    const isFromCache = cachedResult !== null;
+
+    res.json({
+      ...result,
+      cached: isFromCache,
+      processingTimeMs: duration,
+      truck: {
+        truckId,
+        pricing,
+        menuSummary
+      }
+    });
+  } catch (error) {
+    console.error('[ROUTE ERROR] /recommendations/mine:', error.message);
+    res.status(500).json({
+      error: 'Failed to generate owner recommendations',
       message: error.message,
       timestamp: new Date().toISOString()
     });
