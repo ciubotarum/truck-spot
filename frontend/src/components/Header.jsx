@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import motto from '../data/motto.json';
 
-const Header = ({ date }) => {
+const Header = ({ date, authUser, authProfile, onOpenAuth, onLogout }) => {
   const [currentDate, setCurrentDate] = useState('');
 
   useEffect(() => {
@@ -46,10 +46,39 @@ const Header = ({ date }) => {
           </div>
         </div>
 
-        {/* Date Display */}
-        <div className="text-light text-end">
-          <small className="d-block opacity-75">📅 Recommendations for</small>
-          <strong>{currentDate}</strong>
+        {/* Right side */}
+        <div className="text-light text-end d-flex align-items-center gap-3">
+          <div>
+            <small className="d-block opacity-75">📅 Recommendations for</small>
+            <strong>{currentDate}</strong>
+          </div>
+
+          <div className="text-end">
+            {authUser ? (
+              <>
+                <div className="d-flex align-items-center gap-2">
+                  <strong className="small">
+                    {authProfile?.truckName || authUser.email}
+                  </strong>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-light"
+                    onClick={onLogout}
+                  >
+                    Logout
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-light"
+                onClick={() => onOpenAuth?.('login')}
+              >
+                Login
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </nav>

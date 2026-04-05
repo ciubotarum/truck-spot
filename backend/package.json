@@ -24,6 +24,8 @@
     "dotenv": "^16.0.3",
     "axios": "^1.6.0",
     "body-parser": "^1.20.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
     "langchain": "^0.1.27",
     "@langchain/community": "^0.0.30",
     "groq-sdk": "^0.3.0"

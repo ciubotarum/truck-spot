@@ -2,6 +2,9 @@ node_modules/
 .env
 .env.local
 .env.*.local
+
+# Local SQLite database (created at runtime)
+var/
 dist/
 build/
 *.log

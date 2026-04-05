@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import MapComponent from '../components/MapComponent';
 import RecommendationCard from '../components/RecommendationCard';
-import { agentService, parkingService } from '../services/api';
+import { agentService, parkingService, authService, setAuthToken } from '../services/api';
 
 const Home = () => {
   const [recommendations, setRecommendations] = useState([]);
@@ -18,7 +18,23 @@ const Home = () => {
   const [parkingAvailability, setParkingAvailability] = useState(null);
   const [selectedSpotNumber, setSelectedSpotNumber] = useState('');
 
-  const [userId] = useState(() => {
+  const [authUser, setAuthUser] = useState(null);
+  const [authProfile, setAuthProfile] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+
+  const [authForm, setAuthForm] = useState({
+    email: '',
+    password: '',
+    truckName: '',
+    cuisine: '',
+    description: '',
+    phone: ''
+  });
+
+  const [guestUserId] = useState(() => {
     try {
       const existing = window.localStorage.getItem('truckspot_user_id');
       if (existing) return existing;
@@ -29,6 +45,29 @@ const Home = () => {
       return `user_${Math.random().toString(16).slice(2)}`;
     }
   });
+
+  const effectiveUserId = authUser?.id || guestUserId;
+
+  useEffect(() => {
+    // Boot auth from localStorage token (if present)
+    const token = window.localStorage.getItem('truckspot_auth_token');
+    if (!token) return;
+
+    setAuthToken(token);
+    authService.me()
+      .then((res) => {
+        const data = res.data?.data;
+        setAuthUser(data?.user || null);
+        setAuthProfile(data?.profile || null);
+      })
+      .catch(() => {
+        // Token invalid/expired
+        window.localStorage.removeItem('truckspot_auth_token');
+        setAuthToken(null);
+        setAuthUser(null);
+        setAuthProfile(null);
+      });
+  }, []);
 
   useEffect(() => {
     loadRecommendations();
@@ -84,7 +123,7 @@ const Home = () => {
     try {
       setParkingLoading(true);
       setParkingError(null);
-      const res = await parkingService.getAvailability(date, locationId, userId);
+      const res = await parkingService.getAvailability(date, locationId, effectiveUserId);
       const data = res.data?.data;
       setParkingAvailability(data || null);
       setSelectedSpotNumber('');
@@ -101,7 +140,7 @@ const Home = () => {
       if (!selectedSpotNumber) return;
       setParkingLoading(true);
       setParkingError(null);
-      const res = await parkingService.reserveSpot(date, locationId, userId, Number(selectedSpotNumber));
+      const res = await parkingService.reserveSpot(date, locationId, effectiveUserId, Number(selectedSpotNumber));
       const data = res.data?.data?.availability;
       setParkingAvailability(data || null);
     } catch (e) {
@@ -115,7 +154,7 @@ const Home = () => {
     try {
       setParkingLoading(true);
       setParkingError(null);
-      const res = await parkingService.releaseSpot(date, locationId, userId);
+      const res = await parkingService.releaseSpot(date, locationId, effectiveUserId);
       const data = res.data?.data?.availability;
       setParkingAvailability(data || null);
       setSelectedSpotNumber('');
@@ -126,20 +165,81 @@ const Home = () => {
     }
   };
 
+  const openAuth = (mode = 'login') => {
+    setAuthError(null);
+    setAuthMode(mode);
+    setIsAuthOpen(true);
+  };
+
+  const closeAuth = () => {
+    setIsAuthOpen(false);
+    setAuthError(null);
+    setAuthLoading(false);
+  };
+
+  const logout = () => {
+    window.localStorage.removeItem('truckspot_auth_token');
+    setAuthToken(null);
+    setAuthUser(null);
+    setAuthProfile(null);
+  };
+
+  const submitAuth = async (e) => {
+    e.preventDefault();
+    try {
+      setAuthLoading(true);
+      setAuthError(null);
+
+      const res = authMode === 'register'
+        ? await authService.register({
+          email: authForm.email,
+          password: authForm.password,
+          truckName: authForm.truckName,
+          cuisine: authForm.cuisine || null,
+          description: authForm.description || null,
+          phone: authForm.phone || null
+        })
+        : await authService.login({
+          email: authForm.email,
+          password: authForm.password
+        });
+
+      const token = res.data?.data?.token;
+      const user = res.data?.data?.user || null;
+      const profile = res.data?.data?.profile || null;
+
+      if (!token) throw new Error('Missing token');
+
+      window.localStorage.setItem('truckspot_auth_token', token);
+      setAuthToken(token);
+      setAuthUser(user);
+      setAuthProfile(profile);
+      closeAuth();
+    } catch (err) {
+      setAuthError(err?.response?.data?.error || err?.message || 'Authentication failed');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (!isDetailsOpen) return;
+    const anyModalOpen = isDetailsOpen || isAuthOpen;
+    if (!anyModalOpen) return;
 
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') closeDetails();
+      if (e.key !== 'Escape') return;
+      if (isAuthOpen) return closeAuth();
+      if (isDetailsOpen) return closeDetails();
     };
 
     document.body.classList.add('modal-open');
     window.addEventListener('keydown', onKeyDown);
     return () => {
-      document.body.classList.remove('modal-open');
+      const stillOpen = isDetailsOpen || isAuthOpen;
+      if (!stillOpen) document.body.classList.remove('modal-open');
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [isDetailsOpen]);
+  }, [isDetailsOpen, isAuthOpen]);
 
   useEffect(() => {
     if (!isDetailsOpen) return;
@@ -151,7 +251,13 @@ const Home = () => {
   return (
     <div className="d-flex flex-column min-vh-100 bg-light">
       {/* Header */}
-      <Header date={date} />
+      <Header
+        date={date}
+        authUser={authUser}
+        authProfile={authProfile}
+        onOpenAuth={openAuth}
+        onLogout={logout}
+      />
 
       {/* Main Content */}
       <main className="container-lg py-4 flex-grow-1">
@@ -515,6 +621,157 @@ const Home = () => {
                 </>
                   );
                 })()}
+              </>
+            )}
+
+            {/* Owner Auth Modal */}
+            {isAuthOpen && (
+              <>
+                <div
+                  className="modal fade show"
+                  role="dialog"
+                  aria-modal="true"
+                  style={{ display: 'block' }}
+                  onMouseDown={(e) => {
+                    if (e.target === e.currentTarget) closeAuth();
+                  }}
+                >
+                  <div className="modal-dialog modal-dialog-centered modal-lg">
+                    <div className="modal-content">
+                      <div className="modal-header">
+                        <div>
+                          <h5 className="modal-title mb-0">Food Truck Owner</h5>
+                          <small className="text-muted">Login or create an owner account</small>
+                        </div>
+                        <button type="button" className="btn-close" aria-label="Close" onClick={closeAuth}></button>
+                      </div>
+
+                      <div className="modal-body">
+                        {authMode === 'login' ? (
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                            <small className="text-muted">
+                              If you don’t have an account, click <strong>Register</strong>.
+                            </small>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => {
+                                setAuthMode('register');
+                                setAuthError(null);
+                              }}
+                              disabled={authLoading}
+                            >
+                              Register
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                            <small className="text-muted">
+                              Already have an account?
+                            </small>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-secondary"
+                              onClick={() => {
+                                setAuthMode('login');
+                                setAuthError(null);
+                              }}
+                              disabled={authLoading}
+                            >
+                              Back to login
+                            </button>
+                          </div>
+                        )}
+
+                        {authError && (
+                          <div className="alert alert-danger py-2">
+                            {authError}
+                          </div>
+                        )}
+
+                        <form onSubmit={submitAuth}>
+                          <div className="row g-3">
+                            <div className="col-md-6">
+                              <label className="form-label">Email</label>
+                              <input
+                                type="email"
+                                className="form-control"
+                                value={authForm.email}
+                                onChange={(e) => setAuthForm((f) => ({ ...f, email: e.target.value }))}
+                                required
+                                autoComplete="email"
+                              />
+                            </div>
+                            <div className="col-md-6">
+                              <label className="form-label">Password</label>
+                              <input
+                                type="password"
+                                className="form-control"
+                                value={authForm.password}
+                                onChange={(e) => setAuthForm((f) => ({ ...f, password: e.target.value }))}
+                                required
+                                minLength={8}
+                                autoComplete={authMode === 'register' ? 'new-password' : 'current-password'}
+                              />
+                            </div>
+
+                            {authMode === 'register' && (
+                              <>
+                                <div className="col-md-6">
+                                  <label className="form-label">Truck name</label>
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={authForm.truckName}
+                                    onChange={(e) => setAuthForm((f) => ({ ...f, truckName: e.target.value }))}
+                                    required
+                                  />
+                                </div>
+                                <div className="col-md-6">
+                                  <label className="form-label">Cuisine (optional)</label>
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={authForm.cuisine}
+                                    onChange={(e) => setAuthForm((f) => ({ ...f, cuisine: e.target.value }))}
+                                  />
+                                </div>
+                                <div className="col-12">
+                                  <label className="form-label">Description (optional)</label>
+                                  <textarea
+                                    className="form-control"
+                                    rows={3}
+                                    value={authForm.description}
+                                    onChange={(e) => setAuthForm((f) => ({ ...f, description: e.target.value }))}
+                                  />
+                                </div>
+                                <div className="col-12">
+                                  <label className="form-label">Phone (optional)</label>
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={authForm.phone}
+                                    onChange={(e) => setAuthForm((f) => ({ ...f, phone: e.target.value }))}
+                                  />
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="d-flex justify-content-end gap-2 mt-4">
+                            <button type="button" className="btn btn-outline-secondary" onClick={closeAuth} disabled={authLoading}>
+                              Cancel
+                            </button>
+                            <button type="submit" className="btn btn-primary" disabled={authLoading}>
+                              {authLoading ? 'Please wait…' : (authMode === 'register' ? 'Create account' : 'Login')}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-backdrop fade show" onClick={closeAuth}></div>
               </>
             )}
           </>

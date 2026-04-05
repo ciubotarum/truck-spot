@@ -10,6 +10,14 @@ const api = axios.create({
   }
 });
 
+export const setAuthToken = (token) => {
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
+};
+
 // Request interceptor
 api.interceptors.request.use(
   config => {
@@ -61,6 +69,14 @@ export const parkingService = {
     api.post(`/api/parking/${date}/${locationId}/reserve`, { userId, spotNumber }),
   releaseSpot: (date, locationId, userId) =>
     api.post(`/api/parking/${date}/${locationId}/release`, { userId })
+};
+
+// Auth (food truck owner)
+export const authService = {
+  register: ({ email, password, truckName, cuisine, description, phone }) =>
+    api.post('/api/auth/register', { email, password, truckName, cuisine, description, phone }),
+  login: ({ email, password }) => api.post('/api/auth/login', { email, password }),
+  me: () => api.get('/api/auth/me')
 };
 
 // Health check

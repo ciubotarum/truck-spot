@@ -40,6 +40,9 @@ PORT=5000
 NODE_ENV=development
 GROQ_API_KEY=your_groq_api_key_here
 CORS_ORIGIN=http://localhost:5173
+JWT_SECRET=change_me_to_a_long_random_string
+# Optional (defaults to backend/var/truckspot.db)
+# SQLITE_DB_PATH=./var/truckspot.db
 ```
 
 - `GROQ_API_KEY`: Your API key from https://console.groq.com (required for AI agents to work)
@@ -124,6 +127,39 @@ The frontend will run at http://localhost:5173
   ```
 
 ## API Endpoints
+
+### Owner Auth (Food Truck)
+
+Register a food truck owner account (includes basic truck profile fields at registration):
+
+```
+POST /api/auth/register
+```
+
+Example body:
+
+```json
+{
+  "email": "owner@example.com",
+  "password": "supersecret123",
+  "truckName": "Tasty Tacos",
+  "cuisine": "Mexican",
+  "description": "Street tacos and burritos",
+  "phone": "+40 700 000 000"
+}
+```
+
+Login:
+
+```
+POST /api/auth/login
+```
+
+Get the logged-in owner profile (requires `Authorization: Bearer <token>`):
+
+```
+GET /api/auth/me
+```
 
 ### Health Check
 ```
