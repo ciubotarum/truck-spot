@@ -84,42 +84,7 @@ The frontend will run at http://localhost:5173
 
 ### How the Agents Work Together
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Frontend
-    participant Orchestrator
-    participant DemandAgent
-    participant ContextAgent
-    participant RevenueCalculator
-    participant DataSources
-
-    User->>Frontend: Selects date for recommendations
-    Frontend->>Orchestrator: GET /api/agents/recommendations/:date
-    Orchestrator->>DataSources: Fetch locations, weather, events, competition
-    DataSources-->>Orchestrator: Return data for each location
-
-    par Parallel AI Analysis
-        Orchestrator->>DemandAgent: analyzeDemand(location, footTraffic, events)
-        Orchestrator->>ContextAgent: analyzeContext(location, weather, competition, capacity)
-    end
-
-    Note over DemandAgent: AI LLM analyzes<br/>foot traffic + events
-    DemandAgent->>DemandAgent: callGroqAPI(prompt)
-    DemandAgent-->>Orchestrator: demandScore: 0.95<br/>analysis: "..."
-
-    Note over ContextAgent: AI LLM analyzes<br/>weather + competition
-    ContextAgent->>ContextAgent: callGroqAPI(prompt)
-    ContextAgent-->>Orchestrator: contextAdjustment: 1.2<br/>analysis: "..."
-
-    Orchestrator->>RevenueCalculator: projectRevenue(location, demandScore, contextAdjustment)
-    RevenueCalculator-->>Orchestrator: projectedDailyRevenue: $864
-
-    Orchestrator->>Orchestrator: Sort by revenue (descending)
-
-    Orchestrator-->>Frontend: recommendations[]
-    Frontend-->>User: Display AI-powered recommendations
-```
+![AI Agent Workflow Diagram](./out/docs/agentic-ai-flow/agentic-ai-flow.png)
 
 ## Agent Descriptions
 

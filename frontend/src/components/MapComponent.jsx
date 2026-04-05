@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import { Icon } from 'leaflet';
 import { locationService } from '../services/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -13,10 +12,58 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
 });
 
-const MapComponent = ({ onLocationSelect, selectedLocationId }) => {
+const TOP_TIER_COUNT = 2;
+const MID_TIER_COUNT = 2;
+
+const MapComponent = ({ recommendations = [], onLocationSelect, onOpenDetails, selectedLocationId }) => {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const iconCacheRef = useRef(new Map());
+
+  const recommendationRankById = useMemo(() => {
+    const map = new Map();
+    (recommendations || []).forEach((rec, idx) => {
+      const id = rec?.location?.id;
+      if (id) map.set(id, idx);
+    });
+    return map;
+  }, [recommendations]);
+
+  const getTierForLocation = (locationId) => {
+    const rank = recommendationRankById.get(locationId);
+    if (rank === undefined) return 'default';
+    if (rank < TOP_TIER_COUNT) return 'top';
+    if (rank < TOP_TIER_COUNT + MID_TIER_COUNT) return 'mid';
+    return 'low';
+  };
+
+  const getMarkerIcon = (tier, isSelected) => {
+    const cacheKey = `${tier}-${isSelected ? 'selected' : 'normal'}`;
+    const cached = iconCacheRef.current.get(cacheKey);
+    if (cached) return cached;
+
+    const tierClass =
+      tier === 'top'
+        ? 'ts-marker--top'
+        : tier === 'mid'
+          ? 'ts-marker--mid'
+          : tier === 'low'
+            ? 'ts-marker--low'
+            : 'ts-marker--default';
+
+    const icon = L.divIcon({
+      className: 'leaflet-div-icon ts-marker-icon',
+      html: `<div class="ts-marker ${tierClass} ${isSelected ? 'ts-marker--selected' : ''}" aria-label="Location marker"></div>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+      popupAnchor: [0, -12]
+    });
+
+    iconCacheRef.current.set(cacheKey, icon);
+    return icon;
+  };
 
   useEffect(() => {
     loadLocations();
@@ -84,10 +131,10 @@ const MapComponent = ({ onLocationSelect, selectedLocationId }) => {
         <React.Fragment key={location.id}>
           <Marker
             position={[location.lat, location.lng]}
+            icon={getMarkerIcon(getTierForLocation(location.id), selectedLocationId === location.id)}
             eventHandlers={{
               click: () => onLocationSelect(location)
             }}
-            className={selectedLocationId === location.id ? 'selected-marker' : ''}
           >
             <Popup>
               <div>
@@ -103,7 +150,10 @@ const MapComponent = ({ onLocationSelect, selectedLocationId }) => {
                 </small>
                 <button
                   className="btn btn-sm btn-primary mt-2 w-100"
-                  onClick={() => onLocationSelect(location)}
+                  onClick={() => {
+                    onLocationSelect(location);
+                    onOpenDetails?.(location);
+                  }}
                 >
                   Select
                 </button>

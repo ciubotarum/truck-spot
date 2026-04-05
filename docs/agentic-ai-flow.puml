@@ -1,0 +1,37 @@
+@startuml
+title TruckSpot — How the AI Agents Work Together
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam monochrome true
+
+' Agent-only sequence diagram.
+participant "AgenticOrchestrator\n(controls workflow + aggregates)" as ORCH
+participant "DemandAgent\n(Groq LLM)" as DA
+participant "ContextAgent\n(Groq LLM)" as CA
+participant "RevenueCalculator\n(deterministic)" as RC
+
+note right of ORCH
+Goal: rank locations by projected revenue.
+Outputs: recommendations with AI reasoning.
+end note
+
+loop For each location
+  ORCH -> ORCH : Build per-location context
+
+  par DemandAgent
+    ORCH -> DA : Analyze demand factors\n(foot traffic + events)
+    DA --> ORCH : demandScore\n+ short analysis text
+  else ContextAgent
+    ORCH -> CA : Analyze context factors\n(weather + competition + capacity)
+    CA --> ORCH : contextAdjustment\n+ short analysis text
+  end
+
+  ORCH -> RC : Project revenue\n(base capacity × demandScore × contextAdjustment)
+  RC --> ORCH : projectedDailyRevenue
+end
+
+ORCH -> ORCH : Sort all locations by projectedDailyRevenue
+ORCH --> ORCH : Return recommendations[]
+
+@enduml

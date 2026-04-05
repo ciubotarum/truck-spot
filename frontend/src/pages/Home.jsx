@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import MapComponent from '../components/MapComponent';
 import RecommendationCard from '../components/RecommendationCard';
-import { agentService } from '../services/api';
+import { agentService, parkingService } from '../services/api';
 
 const Home = () => {
   const [recommendations, setRecommendations] = useState([]);
@@ -11,6 +11,24 @@ const Home = () => {
   const [date] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  const [parkingLoading, setParkingLoading] = useState(false);
+  const [parkingError, setParkingError] = useState(null);
+  const [parkingAvailability, setParkingAvailability] = useState(null);
+  const [selectedSpotNumber, setSelectedSpotNumber] = useState('');
+
+  const [userId] = useState(() => {
+    try {
+      const existing = window.localStorage.getItem('truckspot_user_id');
+      if (existing) return existing;
+      const id = (window.crypto?.randomUUID ? window.crypto.randomUUID() : `user_${Math.random().toString(16).slice(2)}`);
+      window.localStorage.setItem('truckspot_user_id', id);
+      return id;
+    } catch {
+      return `user_${Math.random().toString(16).slice(2)}`;
+    }
+  });
 
   useEffect(() => {
     loadRecommendations();
@@ -37,9 +55,98 @@ const Home = () => {
     setSelectedLocation(location);
   };
 
+  const handleOpenLocationDetails = (location) => {
+    if (!location) return;
+
+    setSelectedLocation(location);
+    const matchingRecommendation = recommendations.find(r => r?.location?.id === location.id) || null;
+    setSelectedRecommendation(matchingRecommendation);
+    setIsDetailsOpen(true);
+  };
+
   const handleRecommendationSelect = (recommendation) => {
     setSelectedRecommendation(recommendation);
+
+    // Also sync the map + right-side Location Details panel.
+    if (recommendation?.location) {
+      setSelectedLocation(recommendation.location);
+    }
+
+    // Show a modal with full details.
+    setIsDetailsOpen(true);
   };
+
+  const closeDetails = () => {
+    setIsDetailsOpen(false);
+  };
+
+  const loadParkingAvailability = async (locationId) => {
+    try {
+      setParkingLoading(true);
+      setParkingError(null);
+      const res = await parkingService.getAvailability(date, locationId, userId);
+      const data = res.data?.data;
+      setParkingAvailability(data || null);
+      setSelectedSpotNumber('');
+    } catch (e) {
+      setParkingAvailability(null);
+      setParkingError(e?.response?.data?.error || 'Failed to load parking availability');
+    } finally {
+      setParkingLoading(false);
+    }
+  };
+
+  const reserveSelectedSpot = async (locationId) => {
+    try {
+      if (!selectedSpotNumber) return;
+      setParkingLoading(true);
+      setParkingError(null);
+      const res = await parkingService.reserveSpot(date, locationId, userId, Number(selectedSpotNumber));
+      const data = res.data?.data?.availability;
+      setParkingAvailability(data || null);
+    } catch (e) {
+      setParkingError(e?.response?.data?.error || 'Failed to reserve spot');
+    } finally {
+      setParkingLoading(false);
+    }
+  };
+
+  const releaseMySpot = async (locationId) => {
+    try {
+      setParkingLoading(true);
+      setParkingError(null);
+      const res = await parkingService.releaseSpot(date, locationId, userId);
+      const data = res.data?.data?.availability;
+      setParkingAvailability(data || null);
+      setSelectedSpotNumber('');
+    } catch (e) {
+      setParkingError(e?.response?.data?.error || 'Failed to release spot');
+    } finally {
+      setParkingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isDetailsOpen) return;
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') closeDetails();
+    };
+
+    document.body.classList.add('modal-open');
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.classList.remove('modal-open');
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isDetailsOpen]);
+
+  useEffect(() => {
+    if (!isDetailsOpen) return;
+    const locationId = selectedLocation?.id || selectedRecommendation?.location?.id;
+    if (!locationId) return;
+    loadParkingAvailability(locationId);
+  }, [isDetailsOpen, selectedRecommendation, selectedLocation, date]);
 
   return (
     <div className="d-flex flex-column min-vh-100 bg-light">
@@ -80,7 +187,9 @@ const Home = () => {
                   <div className="card-body">
                     <h5 className="card-title mb-3">📍 Location Map</h5>
                     <MapComponent
+                      recommendations={recommendations}
                       onLocationSelect={handleLocationSelect}
+                      onOpenDetails={handleOpenLocationDetails}
                       selectedLocationId={selectedLocation?.id}
                     />
                   </div>
@@ -171,68 +280,242 @@ const Home = () => {
             </div>
 
             {/* Selected Recommendation Details */}
-            {selectedRecommendation && (
-              <div className="card shadow-sm border-0 bg-light-blue mb-4">
-                <div className="card-body">
-                  <h5 className="card-title mb-3">
-                    💡 Why {selectedRecommendation.location?.name}?
-                  </h5>
+            {isDetailsOpen && (selectedLocation || selectedRecommendation) && (
+              <>
+                {(() => {
+                  const detailsLocation = selectedLocation || selectedRecommendation?.location;
+                  const hasRecommendation = !!selectedRecommendation;
+                  return (
+                <>
+                <div
+                  className="modal fade show"
+                  role="dialog"
+                  aria-modal="true"
+                  style={{ display: 'block' }}
+                  onMouseDown={(e) => {
+                    // Click outside closes (backdrop behavior)
+                    if (e.target === e.currentTarget) closeDetails();
+                  }}
+                >
+                  <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                    <div className="modal-content">
+                      <div className="modal-header">
+                        <div>
+                          <h5 className="modal-title mb-0">
+                            {detailsLocation?.name || 'Location details'}
+                          </h5>
+                          <small className="text-muted">
+                            {detailsLocation?.zone || 'Unknown zone'}
+                          </small>
+                        </div>
+                        <button type="button" className="btn-close" aria-label="Close" onClick={closeDetails}></button>
+                      </div>
 
-                  <div className="row mb-3">
-                    <div className="col-md-3">
-                      <div className="text-center p-3 bg-white rounded">
-                        <small className="text-muted d-block mb-2">Demand Score</small>
-                        <h4 className="text-primary mb-0">
-                          {selectedRecommendation.agenticAnalysis?.decisions?.demand?.demandScore?.toFixed(2) || 'N/A'}
-                        </h4>
-                      </div>
-                    </div>
-                    <div className="col-md-3">
-                      <div className="text-center p-3 bg-white rounded">
-                        <small className="text-muted d-block mb-2">Est. Revenue</small>
-                        <h4 className="text-success mb-0">
-                          €{selectedRecommendation.agenticAnalysis?.decisions?.revenue?.projectedDailyRevenue || 0}
-                        </h4>
-                      </div>
-                    </div>
-                    <div className="col-md-3">
-                      <div className="text-center p-3 bg-white rounded">
-                        <small className="text-muted d-block mb-2">Context Adj.</small>
-                        <h4 className="text-warning mb-0">
-                          {selectedRecommendation.agenticAnalysis?.decisions?.context?.contextAdjustment?.toFixed(2) || '1.00'}
-                        </h4>
-                      </div>
-                    </div>
-                    <div className="col-md-3">
-                      <div className="text-center p-3 bg-white rounded">
-                        <small className="text-muted d-block mb-2">Risk Level</small>
-                        <h4 className={`mb-0 text-${
-                          selectedRecommendation.agenticAnalysis?.recommendation?.riskLevel === 'LOW' ? 'success' :
-                          selectedRecommendation.agenticAnalysis?.recommendation?.riskLevel === 'MEDIUM' ? 'warning' :
-                          'danger'
-                        }`}>
-                          {selectedRecommendation.agenticAnalysis?.recommendation?.riskLevel || 'N/A'}
-                        </h4>
-                      </div>
-                    </div>
-                  </div>
+                      <div className="modal-body">
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <div className="card border-0 bg-light">
+                              <div className="card-body">
+                                <h6 className="fw-bold mb-2">📌 Location</h6>
+                                <div className="small text-muted">
+                                  <div><strong>Type:</strong> {detailsLocation?.type?.replace(/_/g, ' ') || 'N/A'}</div>
+                                  <div><strong>Capacity:</strong> {detailsLocation?.capacity?.replace(/_/g, ' ') || 'N/A'}</div>
+                                  <div>
+                                    <strong>Parking:</strong>{' '}
+                                    {parkingAvailability
+                                      ? `${parkingAvailability.available}/${parkingAvailability.total} available`
+                                      : `${detailsLocation?.parkingSpots ?? 'N/A'} total`}
+                                  </div>
+                                </div>
+                                {detailsLocation?.description && (
+                                  <p className="small text-muted mb-0 mt-2">
+                                    {detailsLocation.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
 
-                  <div className="row">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-2">🤖 Demand Analysis (AI):</h6>
-                      <p className="small text-muted">
-                        {selectedRecommendation.agenticAnalysis?.decisions?.demand?.analysis || 'No analysis available'}
-                      </p>
-                    </div>
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-2">🌤️ Context Analysis (AI):</h6>
-                      <p className="small text-muted">
-                        {selectedRecommendation.agenticAnalysis?.decisions?.context?.analysis || 'No analysis available'}
-                      </p>
+                          <div className="col-md-6">
+                            <div className="card border-0 bg-light">
+                              <div className="card-body">
+                                <h6 className="fw-bold mb-2">🤖 AI Summary</h6>
+                                {hasRecommendation ? (
+                                  <div className="row g-2">
+                                    <div className="col-6">
+                                      <div className="p-2 bg-white rounded text-center">
+                                        <small className="text-muted d-block">Demand</small>
+                                        <div className="fw-bold">
+                                          {selectedRecommendation.agenticAnalysis?.decisions?.demand?.demandScore?.toFixed(2) || 'N/A'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="col-6">
+                                      <div className="p-2 bg-white rounded text-center">
+                                        <small className="text-muted d-block">Context Adj.</small>
+                                        <div className="fw-bold">
+                                          {selectedRecommendation.agenticAnalysis?.decisions?.context?.contextAdjustment?.toFixed(2) || '1.00'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="col-6">
+                                      <div className="p-2 bg-white rounded text-center">
+                                        <small className="text-muted d-block">Est. Revenue</small>
+                                        <div className="fw-bold text-success">
+                                          €{selectedRecommendation.agenticAnalysis?.decisions?.revenue?.projectedDailyRevenue || 0}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="col-6">
+                                      <div className="p-2 bg-white rounded text-center">
+                                        <small className="text-muted d-block">Risk</small>
+                                        <div className="fw-bold">
+                                          {selectedRecommendation.agenticAnalysis?.recommendation?.riskLevel || 'N/A'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="small text-muted">
+                                    No AI recommendation details for this location.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="col-12">
+                            <div className="card border-0">
+                              <div className="card-body p-0">
+                                <h6 className="fw-bold mb-2">🧠 AI Reasoning</h6>
+                                {hasRecommendation ? (
+                                  <div className="row g-3">
+                                    <div className="col-md-6">
+                                      <div className="p-3 bg-light rounded">
+                                        <div className="small fw-bold mb-2">Demand</div>
+                                        <div className="small text-muted">
+                                          {selectedRecommendation.agenticAnalysis?.decisions?.demand?.analysis || 'No demand analysis available.'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="col-md-6">
+                                      <div className="p-3 bg-light rounded">
+                                        <div className="small fw-bold mb-2">Context</div>
+                                        <div className="small text-muted">
+                                          {selectedRecommendation.agenticAnalysis?.decisions?.context?.analysis || 'No context analysis available.'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="small text-muted">
+                                    Open the recommendation card for this location to see AI reasoning.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="col-12">
+                            <div className="card border-0 bg-light">
+                              <div className="card-body">
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                  <h6 className="fw-bold mb-0">🅿️ Reserve a Parking Spot</h6>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-primary"
+                                    onClick={() => loadParkingAvailability(detailsLocation?.id)}
+                                    disabled={parkingLoading}
+                                  >
+                                    Refresh
+                                  </button>
+                                </div>
+
+                                {parkingError && (
+                                  <div className="alert alert-danger py-2 mb-2">
+                                    {parkingError}
+                                  </div>
+                                )}
+
+                                {parkingAvailability ? (
+                                  <>
+                                    <div className="small text-muted mb-2">
+                                      Availability: <strong>{parkingAvailability.available}/{parkingAvailability.total}</strong>
+                                      {parkingAvailability.mySpot ? (
+                                        <> · Your spot: <strong>#{parkingAvailability.mySpot}</strong></>
+                                      ) : null}
+                                    </div>
+
+                                    <div className="row g-2 align-items-end">
+                                      <div className="col-md-6">
+                                        <label className="form-label small text-muted mb-1">Select spot</label>
+                                        <select
+                                          className="form-select"
+                                          value={selectedSpotNumber}
+                                          onChange={(e) => setSelectedSpotNumber(e.target.value)}
+                                          disabled={parkingLoading || !!parkingAvailability.mySpot}
+                                        >
+                                          <option value="">Choose an available spot…</option>
+                                          {parkingAvailability.availableSpots.map((spot) => (
+                                            <option key={spot} value={spot}>{`Spot #${spot}`}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+
+                                      <div className="col-md-6 d-flex gap-2">
+                                        <button
+                                          type="button"
+                                          className="btn btn-success flex-grow-1"
+                                          onClick={() => reserveSelectedSpot(detailsLocation?.id)}
+                                          disabled={parkingLoading || !selectedSpotNumber || !!parkingAvailability.mySpot}
+                                        >
+                                          Reserve
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="btn btn-outline-danger"
+                                          onClick={() => releaseMySpot(detailsLocation?.id)}
+                                          disabled={parkingLoading || !parkingAvailability.mySpot}
+                                        >
+                                          Release
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="small text-muted">
+                                    {parkingLoading ? 'Loading parking availability…' : 'No parking data available.'}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="modal-footer">
+                        <button type="button" className="btn btn-outline-secondary" onClick={closeDetails}>
+                          Close
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => {
+                            // Keep behavior minimal: close and keep selection synced.
+                            closeDetails();
+                          }}
+                        >
+                          OK
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+                <div className="modal-backdrop fade show" onClick={closeDetails}></div>
+                </>
+                  );
+                })()}
+              </>
             )}
           </>
         )}

@@ -23,6 +23,7 @@ app.get('/health', (req, res) => {
 app.use('/api/locations', require('./routes/locations'));
 app.use('/api/recommendations', require('./routes/recommendations'));
 app.use('/api/agents', require('./routes/agentRoutes'));
+app.use('/api/parking', require('./routes/parking'));
 
 // 404 Handler
 app.use((req, res) => {

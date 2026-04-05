@@ -145,6 +145,49 @@ body {
   animation: spin 1s linear infinite;
 }
 
+/* Map markers (recommendation tiers)
+   Keep these rules at top-level (no nesting) so they apply in the browser. */
+.leaflet-div-icon.ts-marker-icon {
+  background: transparent;
+  border: 0;
+}
+
+.ts-marker-icon {
+  background: transparent;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ts-marker {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.ts-marker--selected {
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.35);
+}
+
+.ts-marker--top {
+  background-color: var(--success-color);
+}
+
+.ts-marker--mid {
+  background-color: var(--warning-color);
+}
+
+.ts-marker--low {
+  background-color: var(--danger-color);
+}
+
+.ts-marker--default {
+  background-color: var(--primary-color);
+}
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);

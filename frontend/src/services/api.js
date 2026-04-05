@@ -53,6 +53,16 @@ export const agentService = {
   getAIRecommendationsSummary: (date) => api.get(`/api/agents/recommendations/${date}/summary`)
 };
 
+// Parking / reservations API
+export const parkingService = {
+  getAvailability: (date, locationId, userId) =>
+    api.get(`/api/parking/${date}/${locationId}`, { params: { userId } }),
+  reserveSpot: (date, locationId, userId, spotNumber) =>
+    api.post(`/api/parking/${date}/${locationId}/reserve`, { userId, spotNumber }),
+  releaseSpot: (date, locationId, userId) =>
+    api.post(`/api/parking/${date}/${locationId}/release`, { userId })
+};
+
 // Health check
 export const healthCheck = () => api.get('/health');
 
