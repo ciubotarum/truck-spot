@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import MapComponent from '../components/MapComponent';
@@ -9,7 +9,7 @@ const Home = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedRecommendation, setSelectedRecommendation] = useState(null);
-  const [date] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -58,12 +58,33 @@ const Home = () => {
   const [myReservationsLoading, setMyReservationsLoading] = useState(false);
   const [myReservationsError, setMyReservationsError] = useState(null);
 
+  const todayDate = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const myReservationsByDate = useMemo(() => {
+    const groups = new Map();
+    for (const r of (myReservations || [])) {
+      const key = r?.date || 'Unknown date';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(r);
+    }
+
+    // Sort: newest date first; keep "Unknown date" last.
+    return Array.from(groups.entries())
+      .sort(([a], [b]) => {
+        if (a === 'Unknown date') return 1;
+        if (b === 'Unknown date') return -1;
+        return String(b).localeCompare(String(a));
+      })
+      .map(([dateKey, items]) => ({ date: dateKey, items }));
+  }, [myReservations]);
+
   const loadMyReservations = async () => {
     if (!authUser) return;
     try {
       setMyReservationsLoading(true);
       setMyReservationsError(null);
-      const res = await reservationsService.listMine(date);
+      // Load across all dates; UI should show date per reservation.
+      const res = await reservationsService.listMine();
       setMyReservations(res.data?.data || []);
     } catch (e) {
       setMyReservations([]);
@@ -314,13 +335,14 @@ const Home = () => {
     }
     loadMyReservations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser, date]);
+  }, [authUser]);
 
   return (
     <div className="d-flex flex-column min-vh-100 bg-light">
       {/* Header */}
       <Header
         date={date}
+        onDateChange={setDate}
         authUser={authUser}
         authProfile={authProfile}
         onOpenAuth={openAuth}
@@ -469,7 +491,7 @@ const Home = () => {
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <div>
                       <h5 className="card-title mb-0">My Reservations</h5>
-                      <small className="text-muted">For {date}</small>
+                      <small className="text-muted">Across all dates</small>
                     </div>
                     <button
                       type="button"
@@ -487,28 +509,49 @@ const Home = () => {
 
                   {myReservationsLoading ? (
                     <div className="small text-muted">Loading…</div>
-                  ) : myReservations.length > 0 ? (
-                    <div className="table-responsive">
-                      <table className="table table-sm mb-0">
-                        <thead>
-                          <tr>
-                            <th>Location</th>
-                            <th>Spot</th>
-                            <th>Created</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {myReservations.map((r, idx) => (
-                            <tr key={`${r.locationId}-${r.spotNumber}-${idx}`}>
-                              <td>{r.locationName || r.locationId}</td>
-                              <td>#{r.spotNumber}</td>
-                              <td className="text-muted">
-                                {r.createdAt ? new Date(r.createdAt).toLocaleTimeString() : ''}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  ) : myReservationsByDate.length > 0 ? (
+                    <div className="d-flex flex-column gap-3">
+                      {myReservationsByDate.map((group) => (
+                        <div key={group.date} className="border rounded">
+                          <div className="d-flex align-items-center justify-content-between px-3 py-2 bg-light border-bottom">
+                            <div className="fw-semibold">
+                              {group.date}
+                              {group.date === todayDate ? (
+                                <span className="badge text-bg-primary ms-2">Today</span>
+                              ) : null}
+                            </div>
+                            <span className="badge text-bg-secondary">
+                              {group.items.length} booking{group.items.length === 1 ? '' : 's'}
+                            </span>
+                          </div>
+
+                          <div className="table-responsive">
+                            <table className="table table-sm mb-0">
+                              <thead>
+                                <tr>
+                                  <th>Location</th>
+                                  <th>Spot</th>
+                                  <th>Created</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {group.items
+                                  .slice()
+                                  .sort((a, b) => String(b?.createdAt || '').localeCompare(String(a?.createdAt || '')))
+                                  .map((r, idx) => (
+                                    <tr key={`${r.locationId}-${r.spotNumber}-${r.date}-${idx}`}>
+                                      <td>{r.locationName || r.locationId}</td>
+                                      <td>#{r.spotNumber}</td>
+                                      <td className="text-muted">
+                                        {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}
+                                      </td>
+                                    </tr>
+                                  ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="small text-muted">No reservations yet.</div>

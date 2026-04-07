@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import motto from '../data/motto.json';
 
-const Header = ({ date, authUser, authProfile, onOpenAuth, onLogout }) => {
+const isValidDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+
+const Header = ({ date, authUser, authProfile, onOpenAuth, onLogout, onDateChange }) => {
   const [currentDate, setCurrentDate] = useState('');
+  const [isPickingDate, setIsPickingDate] = useState(false);
+  const canPickDate = typeof onDateChange === 'function';
 
   useEffect(() => {
     setCurrentDate(new Date(date).toLocaleDateString('en-US', {
@@ -12,6 +16,11 @@ const Header = ({ date, authUser, authProfile, onOpenAuth, onLogout }) => {
       day: 'numeric',
       year: 'numeric'
     }));
+  }, [date]);
+
+  useEffect(() => {
+    // If the parent updates the date, close the picker.
+    setIsPickingDate(false);
   }, [date]);
 
   return (
@@ -51,7 +60,33 @@ const Header = ({ date, authUser, authProfile, onOpenAuth, onLogout }) => {
         <div className="text-light text-end d-flex align-items-center gap-3">
           <div>
             <small className="d-block opacity-75">📅 Recommendations for</small>
-            <strong>{currentDate}</strong>
+            {canPickDate ? (
+              isPickingDate ? (
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={isValidDate(date) ? date : ''}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (!isValidDate(next)) return;
+                    onDateChange(next);
+                  }}
+                  onBlur={() => setIsPickingDate(false)}
+                  autoFocus
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-link p-0 text-light text-decoration-none fw-bold"
+                  onClick={() => setIsPickingDate(true)}
+                  aria-label="Change recommendations date"
+                >
+                  {currentDate}
+                </button>
+              )
+            ) : (
+              <strong>{currentDate}</strong>
+            )}
           </div>
 
           <div className="text-end">

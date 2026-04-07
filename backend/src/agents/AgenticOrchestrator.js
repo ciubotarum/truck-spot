@@ -288,8 +288,11 @@ What should be the next action? Return JSON.`;
     let weather = data.find(w => w.date === date);
     return weather || {
       date: date,
-      condition: 'sunny',
-      trafficImpact: 1.0
+      condition: 'unknown',
+      trafficImpact: 1.0,
+      perception: 'unknown',
+      description: 'No weather data available for this date (using neutral impact).',
+      missingData: true
     };
   }
 
