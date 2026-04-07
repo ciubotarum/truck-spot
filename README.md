@@ -47,6 +47,25 @@ JWT_SECRET=change_me_to_a_long_random_string
 
 - `GROQ_API_KEY`: Your API key from https://console.groq.com (required for AI agents to work)
 
+**Create a `.env` file in the `frontend/` directory (Vite uses `VITE_`-prefixed vars):**
+
+```bash
+cd ../frontend
+```
+
+**Add the following environment variables to `frontend/.env`:**
+
+```env
+VITE_API_URL=http://localhost:5000
+
+# Optional UI labels
+VITE_APP_NAME=TruckSpot
+# VITE_APP_VERSION=1.0.0
+```
+
+- `VITE_API_URL`: Base URL of the backend API (required)
+- `VITE_APP_NAME`: Display name in the header (optional)
+
 ### 3. Setup and Start Backend
 
 ```bash

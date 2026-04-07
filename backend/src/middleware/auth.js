@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken');
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
   if (secret && secret.trim()) return secret;
-  // Dev fallback; for production this MUST be set.
   return 'dev_only_insecure_secret_change_me';
 };
 
