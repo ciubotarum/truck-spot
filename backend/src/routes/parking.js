@@ -42,6 +42,13 @@ router.get('/:date/:locationId/trucks', (req, res) => {
 // POST /api/parking/:date/:locationId/reserve  body: { userId, spotNumber }
 router.post('/:date/:locationId/reserve', requireAuth, (req, res) => {
   try {
+    if (process.env.PAYMENTS_REQUIRED === 'true') {
+      return res.status(402).json({
+        success: false,
+        error: 'Payment required. Use /api/payments/checkout to reserve a spot.'
+      });
+    }
+
     const { date, locationId } = req.params;
     const { spotNumber } = req.body || {};
     const userId = req.user.id;

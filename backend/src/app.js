@@ -27,6 +27,7 @@ app.use('/api/parking', require('./routes/parking'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/reservations', require('./routes/reservations'));
 app.use('/api/trucks', require('./routes/trucks'));
+app.use('/api/payments', require('./routes/payments'));
 
 // 404 Handler
 app.use((req, res) => {

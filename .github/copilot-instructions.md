@@ -51,6 +51,7 @@
 - Backend uses CommonJS (`require`, `module.exports`). Keep this style unless explicitly migrating.
 - Frontend uses ESM (`import/export`) and Vite env vars (`import.meta.env`).
 - Date inputs are expected in `YYYY-MM-DD` (see deterministic recommendations route).
+- Pay-as-you-go booking payments must always use RON (Stripe currency code `ron`). Do not introduce other currencies for booking fees.
 - Mock data shapes vary in the code (sometimes arrays, sometimes `{ locations: [...] }`). If you change JSON structures, update consumers consistently.
 - Cache invalidation depends on the contents of the JSON files under `backend/src/data/`. If you update mock data and still see old results, clear cache or wait for TTL.
 

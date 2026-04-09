@@ -18,6 +18,15 @@ router.get('/', requireAuth, (req, res) => {
     const db = getDb();
     const date = req.query.date || null;
 
+    const hasStatus = (() => {
+      try {
+        const cols = db.prepare('PRAGMA table_info(reservations)').all().map(c => c.name);
+        return cols.includes('status');
+      } catch {
+        return false;
+      }
+    })();
+
     if (date && !isValidDate(date)) {
       return res.status(400).json({ success: false, error: 'Invalid date format. Use YYYY-MM-DD' });
     }
@@ -27,12 +36,14 @@ router.get('/', requireAuth, (req, res) => {
         `SELECT date, location_id as locationId, spot_number as spotNumber, created_at as createdAt
          FROM reservations
          WHERE user_id = ? AND date = ?
+         ${hasStatus ? "AND status = 'confirmed'" : ''}
          ORDER BY created_at DESC`
       ).all(req.user.id, date)
       : db.prepare(
         `SELECT date, location_id as locationId, spot_number as spotNumber, created_at as createdAt
          FROM reservations
          WHERE user_id = ?
+         ${hasStatus ? "AND status = 'confirmed'" : ''}
          ORDER BY created_at DESC`
       ).all(req.user.id);
 

@@ -86,6 +86,13 @@ export const reservationsService = {
   listMine: (date) => api.get('/api/reservations', { params: date ? { date } : {} })
 };
 
+// Payments (pay-as-you-go booking)
+export const paymentsService = {
+  getQuote: (date, locationId) => api.get('/api/payments/quote', { params: { date, locationId } }),
+  createCheckout: ({ date, locationId, spotNumber }) => api.post('/api/payments/checkout', { date, locationId, spotNumber }),
+  confirmSession: (sessionId) => api.get('/api/payments/confirm', { params: { sessionId } })
+};
+
 // Auth (food truck owner)
 export const authService = {
   register: ({ email, password, truckName, cuisine, description, phone }) =>

@@ -3,21 +3,27 @@ import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import MapComponent from '../components/MapComponent';
 import RecommendationCard from '../components/RecommendationCard';
-import { agentService, parkingService, authService, reservationsService, setAuthToken } from '../services/api';
+import { agentService, parkingService, authService, reservationsService, paymentsService, setAuthToken } from '../services/api';
 
 const Home = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedRecommendation, setSelectedRecommendation] = useState(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [recommendationsError, setRecommendationsError] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  const [recommendationsCacheInfo, setRecommendationsCacheInfo] = useState(null); // { date, savedAt }
 
   const [parkingLoading, setParkingLoading] = useState(false);
   const [parkingError, setParkingError] = useState(null);
   const [parkingAvailability, setParkingAvailability] = useState(null);
   const [selectedSpotNumber, setSelectedSpotNumber] = useState('');
+
+  const [bookingQuote, setBookingQuote] = useState(null);
+  const [bookingQuoteLoading, setBookingQuoteLoading] = useState(false);
+  const [bookingQuoteError, setBookingQuoteError] = useState(null);
 
   const [reservedTrucks, setReservedTrucks] = useState([]);
   const [reservedTrucksLoading, setReservedTrucksLoading] = useState(false);
@@ -59,6 +65,19 @@ const Home = () => {
   const [myReservationsError, setMyReservationsError] = useState(null);
 
   const todayDate = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const recCacheKey = useMemo(() => {
+    if (!authUser?.id) return null;
+    return `truckspot:ai_recs:${authUser.id}:${date}`;
+  }, [authUser?.id, date]);
+
+  const isRecClientCacheFresh = useMemo(() => {
+    if (!recommendationsCacheInfo?.savedAt) return false;
+    if (recommendationsCacheInfo?.date !== date) return false;
+    // Keep this aligned with backend TTL (default 24h). It's OK if it's approximate.
+    const ttlMs = 24 * 60 * 60 * 1000;
+    return (Date.now() - recommendationsCacheInfo.savedAt) < ttlMs;
+  }, [recommendationsCacheInfo, date]);
 
   const myReservationsByDate = useMemo(() => {
     const groups = new Map();
@@ -116,9 +135,75 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
-    loadRecommendations();
+    // Stripe redirects back with ?payment=success&session_id=...
+    // If webhooks are not configured locally, this confirms the reservation on return.
+    if (!authUser) return;
+
+    let cancelled = false;
+
+    const maybeConfirmPayment = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const payment = params.get('payment');
+        const sessionId = params.get('session_id');
+
+        if (payment !== 'success' || !sessionId) return;
+
+        await paymentsService.confirmSession(sessionId);
+        if (cancelled) return;
+
+        await loadMyReservations();
+        if (selectedLocation?.id) {
+          await loadParkingAvailability(selectedLocation.id);
+        }
+
+        // Clean URL so refresh doesn't re-trigger confirmation.
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch {
+        // Keep UX minimal; user can still refresh or check reservations.
+        if (!cancelled) setParkingError('Payment succeeded but confirmation is still pending. Please refresh in a moment.');
+      }
+    };
+
+    maybeConfirmPayment();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?.id]);
+
+  useEffect(() => {
+    // Do not auto-trigger AI calls on navigation/date changes.
+    // We only rehydrate cached results (if present) and let the user click Generate.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, authUser?.id]);
+
+  useEffect(() => {
+    // On auth/date change, try sessionStorage first to avoid re-hitting the backend.
+    if (!recCacheKey) return;
+    try {
+      const raw = window.sessionStorage.getItem(recCacheKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      const savedAt = Number(parsed?.savedAt);
+      const savedDate = parsed?.date;
+      const savedRecs = parsed?.recommendations;
+
+      const ttlMs = 24 * 60 * 60 * 1000;
+      const fresh = Number.isFinite(savedAt) && (Date.now() - savedAt) < ttlMs;
+
+      if (savedDate === date && fresh && Array.isArray(savedRecs)) {
+        setRecommendations(savedRecs);
+        setSelectedRecommendation(savedRecs[0] || null);
+        setRecommendationsError(null);
+        setRecommendationsLoading(false);
+        setRecommendationsCacheInfo({ date: savedDate, savedAt });
+      }
+    } catch {
+      // ignore bad cache
+    }
+  }, [recCacheKey, date]);
 
   const loadRecommendations = async () => {
     try {
@@ -126,23 +211,44 @@ const Home = () => {
         // Guests should not see AI recommendations.
         setRecommendations([]);
         setSelectedRecommendation(null);
-        setError(null);
-        setLoading(false);
+        setRecommendationsError(null);
+        setRecommendationsLoading(false);
         return;
       }
 
-      setLoading(true);
-      setError(null);
+      // If we already loaded recommendations for this user+date recently,
+      // don't re-trigger the endpoint (smooth navigation / refresh).
+      if (recommendations.length > 0 && isRecClientCacheFresh) {
+        return;
+      }
+
+      setRecommendationsLoading(true);
+      setRecommendationsError(null);
       const response = await agentService.getMyAIRecommendations(date);
-      setRecommendations(response.data.recommendations);
-      if (response.data.recommendations.length > 0) {
-        setSelectedRecommendation(response.data.recommendations[0]);
+      const recs = response.data.recommendations || [];
+      setRecommendations(recs);
+      if (recs.length > 0) {
+        setSelectedRecommendation(recs[0]);
+      }
+
+      const savedAt = Date.now();
+      setRecommendationsCacheInfo({ date, savedAt });
+      if (recCacheKey) {
+        try {
+          window.sessionStorage.setItem(recCacheKey, JSON.stringify({
+            date,
+            savedAt,
+            recommendations: recs
+          }));
+        } catch {
+          // ignore storage quota errors
+        }
       }
     } catch (err) {
       console.error('Failed to load recommendations:', err);
-      setError('Failed to load AI recommendations. Please try again later.');
+      setRecommendationsError('Failed to load AI recommendations. Please try again later.');
     } finally {
-      setLoading(false);
+      setRecommendationsLoading(false);
     }
   };
 
@@ -214,10 +320,19 @@ const Home = () => {
       }
       setParkingLoading(true);
       setParkingError(null);
-      const res = await parkingService.reserveSpot(date, locationId, Number(selectedSpotNumber));
-      const data = res.data?.data?.availability;
-      setParkingAvailability(data || null);
-      await loadMyReservations();
+      const res = await paymentsService.createCheckout({
+        date,
+        locationId,
+        spotNumber: Number(selectedSpotNumber)
+      });
+
+      const url = res.data?.data?.checkoutUrl;
+      if (!url) {
+        throw new Error('Missing checkout URL');
+      }
+
+      // Redirect to Stripe Checkout.
+      window.location.assign(url);
     } catch (e) {
       setParkingError(e?.response?.data?.error || 'Failed to reserve spot');
     } finally {
@@ -329,6 +444,44 @@ const Home = () => {
   }, [isDetailsOpen, selectedRecommendation, selectedLocation, date]);
 
   useEffect(() => {
+    if (!isDetailsOpen) return;
+    if (!authUser) {
+      setBookingQuote(null);
+      setBookingQuoteError(null);
+      setBookingQuoteLoading(false);
+      return;
+    }
+
+    const locationId = selectedLocation?.id || selectedRecommendation?.location?.id;
+    if (!locationId) {
+      setBookingQuote(null);
+      setBookingQuoteError(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setBookingQuoteLoading(true);
+        setBookingQuoteError(null);
+        const res = await paymentsService.getQuote(date, locationId);
+        if (cancelled) return;
+        setBookingQuote(res.data?.data || null);
+      } catch (e) {
+        if (cancelled) return;
+        setBookingQuote(null);
+        setBookingQuoteError(e?.response?.data?.error || 'Failed to load booking price');
+      } finally {
+        if (!cancelled) setBookingQuoteLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDetailsOpen, authUser, date, selectedLocation, selectedRecommendation]);
+
+  useEffect(() => {
     if (!authUser) {
       setMyReservations([]);
       return;
@@ -368,31 +521,7 @@ const Home = () => {
           </div>
         )}
 
-        {/* Error Alert */}
-        {error && (
-          <div className="alert alert-danger alert-dismissible fade show" role="alert">
-            {error}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setError(null)}
-              aria-label="Close"
-            ></button>
-          </div>
-        )}
-
-        {loading ? (
-          // Loading State
-          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-            <div className="text-center">
-              <div className="spinner-border text-primary mb-3" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-              <p className="text-muted">Analyzing locations and calculating recommendations...</p>
-            </div>
-          </div>
-        ) : (
-          <>
+        <>
             {/* Map Section */}
             <div className="row mb-4">
               <div className="col-lg-8">
@@ -574,10 +703,22 @@ const Home = () => {
                     <button
                       className="btn btn-sm btn-outline-primary"
                       onClick={loadRecommendations}
+                      disabled={recommendationsLoading}
                     >
-                      🔄 Refresh
+                      {recommendationsLoading ? 'Generating…' : (recommendations.length > 0 ? 'Refresh' : 'Generate')}
                     </button>
                   </div>
+
+                  {recommendationsError ? (
+                    <div className="alert alert-danger mb-3">{recommendationsError}</div>
+                  ) : null}
+
+                  {recommendationsLoading ? (
+                    <div className="d-flex align-items-center gap-2 text-muted">
+                      <div className="spinner-border spinner-border-sm text-primary" role="status" />
+                      <div>Generating recommendations for {date}…</div>
+                    </div>
+                  ) : null}
 
                   {recommendations.length > 0 ? (
                     <div className="row g-3">
@@ -593,7 +734,7 @@ const Home = () => {
                     </div>
                   ) : (
                     <div className="alert alert-info mb-0">
-                      No recommendations available for this date.
+                      No recommendations loaded for this date yet.
                     </div>
                   )}
                 </div>
@@ -832,6 +973,25 @@ const Home = () => {
                                               <option key={spot} value={spot}>{`Spot #${spot}`}</option>
                                             ))}
                                           </select>
+
+                                          <div className="small text-muted mt-2">
+                                            {bookingQuoteLoading ? (
+                                              'Calculating booking fee…'
+                                            ) : bookingQuoteError ? (
+                                              bookingQuoteError
+                                            ) : (bookingQuote?.amountRon != null || bookingQuote?.amountCents != null) ? (
+                                              (() => {
+                                                const currency = String(bookingQuote.currency || 'ron').toUpperCase();
+                                                const amountRon = bookingQuote.amountRon != null
+                                                  ? Number(bookingQuote.amountRon)
+                                                  : Number(bookingQuote.amountCents) / 100;
+                                                const amount = amountRon.toFixed(2);
+                                                return `Booking fee: ${amount} ${currency} (Tier ${bookingQuote.tier}, rank ${bookingQuote.rank})`;
+                                              })()
+                                            ) : (
+                                              'Booking fee will be shown at checkout.'
+                                            )}
+                                          </div>
                                         </div>
 
                                         <div className="col-md-6 d-flex gap-2">
@@ -841,7 +1001,7 @@ const Home = () => {
                                             onClick={() => reserveSelectedSpot(detailsLocation?.id)}
                                             disabled={parkingLoading || !selectedSpotNumber || !!parkingAvailability.mySpot}
                                           >
-                                            Reserve
+                                            Pay & Reserve
                                           </button>
                                           <button
                                             type="button"
@@ -1041,8 +1201,7 @@ const Home = () => {
                 <div className="modal-backdrop fade show" onClick={closeAuth}></div>
               </>
             )}
-          </>
-        )}
+        </>
       </main>
 
       {/* Footer */}

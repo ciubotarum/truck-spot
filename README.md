@@ -41,11 +41,28 @@ NODE_ENV=development
 GROQ_API_KEY=your_groq_api_key_here
 CORS_ORIGIN=http://localhost:5173
 JWT_SECRET=change_me_to_a_long_random_string
+
+# Pay-as-you-go payments (Stripe)
+STRIPE_SECRET_KEY=your_stripe_secret_key
+FRONTEND_URL=http://localhost:5173
+
+# Pricing configuration
+# Booking payments are always RON (Stripe currency code: ron)
+BOOKING_BASE_FEE_RON=60
+PAYMENTS_REQUIRED=true
+# Optional caching controls (agentic endpoints)
+# CACHE_TTL_MS=86400000
+# CACHE_DEBUG=true
 # Optional (defaults to backend/var/truckspot.db)
 # SQLITE_DB_PATH=./var/truckspot.db
 ```
 
 - `GROQ_API_KEY`: Your API key from https://console.groq.com (required for AI agents to work)
+
+**Stripe (required for bookings):**
+
+- `STRIPE_SECRET_KEY`: Required for pay-as-you-go parking bookings (Stripe Checkout). Get it from your Stripe Dashboard → Developers → API keys.
+- `FRONTEND_URL`: Where Stripe should redirect after Checkout (default is `http://localhost:5173`).
 
 **Create a `.env` file in the `frontend/` directory (Vite uses `VITE_`-prefixed vars):**
 
@@ -228,3 +245,48 @@ Returns AI-analyzed location recommendations sorted by revenue.
     }
   ]
 }
+```
+
+## Pricing (Pay-as-you-go booking)
+
+Bookings require a one-time payment via Stripe Checkout.
+
+### Currency
+
+- Booking fees are always charged in **RON** (Stripe currency code: `ron`).
+
+### Inputs
+
+- `BOOKING_BASE_FEE_RON` (default: `60`): base booking fee (whole RON).
+- `date` + `locationId`: used to compute the location's **rank** for that day.
+
+### How rank is computed
+
+1. The backend scores all locations for the selected date using the deterministic scoring service (`scoreAllLocations(date)`).
+2. Locations are sorted by `estimatedRevenue` (highest first).
+3. A location's **rank** is its 1-based position in that sorted list.
+
+### Tiers
+
+Rank is mapped to a tier:
+
+- **Tier A**: rank 1–3 (multiplier `1.6`)
+- **Tier B**: rank 4–10 (multiplier `1.2`)
+- **Tier C**: rank 11+ (multiplier `1.0`)
+
+### Price calculation
+
+The quote is computed as:
+
+- `amountRon = round(baseFeeRon × multiplier)`
+- Stripe Checkout uses minor units: `unit_amount = amountRon × 100`
+
+Example with `BOOKING_BASE_FEE_RON=60`:
+
+- Tier C: `round(60 × 1.0) = 60 RON`
+- Tier B: `round(60 × 1.2) = 72 RON`
+- Tier A: `round(60 × 1.6) = 96 RON`
+
+### Storage
+
+- Payments are stored in SQLite table `reservation_payments` with `amount_ron` (whole RON) and `currency` (`ron`).

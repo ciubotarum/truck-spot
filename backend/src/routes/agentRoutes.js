@@ -4,6 +4,7 @@ const AgenticOrchestrator = require('../agents/AgenticOrchestrator');
 const CacheManager = require('../services/CacheManager');
 const { requireAuth } = require('../middleware/auth');
 const TruckPricingService = require('../services/TruckPricingService');
+const cacheConfig = require('../config/cacheConfig');
 
 const apiKey = process.env.GROQ_API_KEY;
 const orchestrator = new AgenticOrchestrator(apiKey);
@@ -92,13 +93,13 @@ router.get('/recommendations/:date', requireAuth, async (req, res) => {
     const result = await orchestrator.analyzeWithAgenticAI(mockLocations, date);
     const duration = Date.now() - startTime;
 
-    // Check if result came from cache
-    const cachedResult = CacheManager.get(date);
-    const isFromCache = cachedResult !== null;
+    res.setHeader('X-Cache', result?.cached ? 'HIT' : 'MISS');
+    res.setHeader('X-Processing-Time-Ms', String(duration));
+    res.setHeader('Cache-Control', `private, max-age=${Math.floor(cacheConfig.TTL_MS / 1000)}`);
+    res.setHeader('Vary', 'Authorization');
 
     res.json({
       ...result,
-      cached: isFromCache,
       processingTimeMs: duration
     });
   } catch (error) {
@@ -135,13 +136,13 @@ router.get('/recommendations/:date/mine', requireAuth, async (req, res) => {
     });
     const duration = Date.now() - startTime;
 
-    // Check if result came from cache (by key)
-    const cachedResult = CacheManager.get(cacheKey);
-    const isFromCache = cachedResult !== null;
+    res.setHeader('X-Cache', result?.cached ? 'HIT' : 'MISS');
+    res.setHeader('X-Processing-Time-Ms', String(duration));
+    res.setHeader('Cache-Control', `private, max-age=${Math.floor(cacheConfig.TTL_MS / 1000)}`);
+    res.setHeader('Vary', 'Authorization');
 
     res.json({
       ...result,
-      cached: isFromCache,
       processingTimeMs: duration,
       truck: {
         truckId,

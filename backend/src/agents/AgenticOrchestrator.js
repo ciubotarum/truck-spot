@@ -14,6 +14,10 @@ class AgenticOrchestrator {
     this.contextAgent = new ContextAgent(apiKey);
     this.revenueCalculator = new RevenueCalculator();
     this.cacheManager = CacheManager;
+
+    // De-dupe concurrent requests for the same cacheKey.
+    // This prevents multiple expensive Groq runs when users refresh/navigate quickly.
+    this.inFlight = new Map();
   }
 
   async callGroqAPI(prompt, systemPrompt = null) {
@@ -109,14 +113,25 @@ What should be the next action? Return JSON.`;
     }
     // ======================
 
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(` AGENTIC AI ORCHESTRATOR - Intelligent Analysis`);
-    console.log(`${'='.repeat(60)}\n`);
-    console.log(`No valid cache found, running fresh analysis...\n`);
+    // ===== IN-FLIGHT DE-DUPE =====
+    // If another request is already computing this cacheKey, await it.
+    if (this.inFlight.has(cacheKey)) {
+      if (CacheManager?.DEBUG) {
+        console.log(`[CACHE] IN-FLIGHT: Awaiting existing analysis for ${cacheKey}`);
+      }
+      return this.inFlight.get(cacheKey);
+    }
+    // =============================
 
-    const results = [];
+    const computePromise = (async () => {
+      console.log(`\n${'='.repeat(60)}`);
+      console.log(` AGENTIC AI ORCHESTRATOR - Intelligent Analysis`);
+      console.log(`${'='.repeat(60)}\n`);
+      console.log(`No valid cache found, running fresh analysis...\n`);
 
-    for (const location of locations) {
+      const results = [];
+
+      for (const location of locations) {
       console.log(`\n📍 Location: ${location.name}`);
       console.log(`${'─'.repeat(50)}`);
 
@@ -215,7 +230,7 @@ What should be the next action? Return JSON.`;
       });
 
       console.log(`\n  📊 Final Score: ${finalScore.toFixed(2)} | ${finalRecommendation.riskLevel} Risk`);
-    }
+      }
 
     console.log(`\n${'='.repeat(60)}`);
 
@@ -236,10 +251,19 @@ What should be the next action? Return JSON.`;
 
     // ===== CACHE STORE =====
     // Store the fresh analysis in cache for future requests
-    this.cacheManager.set(cacheKey, { ...responseData });
+      this.cacheManager.set(cacheKey, { ...responseData });
     // ======================
 
-    return responseData;
+      return responseData;
+    })();
+
+    this.inFlight.set(cacheKey, computePromise);
+
+    try {
+      return await computePromise;
+    } finally {
+      this.inFlight.delete(cacheKey);
+    }
   }
 
   calculateFinalScore(analysisState) {
