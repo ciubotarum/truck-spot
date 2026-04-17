@@ -1,138 +1,6 @@
 {
   "weather": [
     {
-      "date": "2026-04-04",
-      "temperature": 18,
-      "condition": "sunny",
-      "humidity": 65,
-      "windSpeed": 12,
-      "uvIndex": 6,
-      "perception": "ideal",
-      "trafficImpact": 1.1,
-      "description": "Perfect weather for outdoor activities and foot traffic"
-    },
-    {
-      "date": "2026-04-05",
-      "temperature": 15,
-      "condition": "cloudy",
-      "humidity": 70,
-      "windSpeed": 15,
-      "uvIndex": 4,
-      "perception": "moderate",
-      "trafficImpact": 0.95,
-      "description": "Cloudy with occasional sun, moderate foot traffic expected"
-    },
-    {
-      "date": "2026-04-06",
-      "temperature": 12,
-      "condition": "rainy",
-      "humidity": 85,
-      "windSpeed": 20,
-      "uvIndex": 2,
-      "perception": "poor",
-      "trafficImpact": 0.7,
-      "description": "Rainy day with reduced outdoor activity"
-    },
-    {
-      "date": "2026-04-07",
-      "temperature": 20,
-      "condition": "sunny",
-      "humidity": 60,
-      "windSpeed": 10,
-      "uvIndex": 7,
-      "perception": "excellent",
-      "trafficImpact": 1.2,
-      "description": "Excellent weather, high foot traffic expected"
-    },
-    {
-      "date": "2026-04-08",
-      "temperature": 17,
-      "condition": "cloudy",
-      "humidity": 68,
-      "windSpeed": 14,
-      "uvIndex": 4,
-      "perception": "good",
-      "trafficImpact": 0.98,
-      "description": "Mild and cloudy, steady foot traffic"
-    },
-    {
-      "date": "2026-04-09",
-      "temperature": 14,
-      "condition": "rainy",
-      "humidity": 82,
-      "windSpeed": 18,
-      "uvIndex": 2,
-      "perception": "poor",
-      "trafficImpact": 0.75,
-      "description": "Periods of rain, fewer outdoor visitors"
-    },
-    {
-      "date": "2026-04-10",
-      "temperature": 16,
-      "condition": "windy",
-      "humidity": 62,
-      "windSpeed": 28,
-      "uvIndex": 5,
-      "perception": "fair",
-      "trafficImpact": 0.9,
-      "description": "Windy conditions may slightly reduce lingering"
-    },
-    {
-      "date": "2026-04-11",
-      "temperature": 21,
-      "condition": "sunny",
-      "humidity": 58,
-      "windSpeed": 11,
-      "uvIndex": 7,
-      "perception": "excellent",
-      "trafficImpact": 1.18,
-      "description": "Clear and warm, strong outdoor demand"
-    },
-    {
-      "date": "2026-04-12",
-      "temperature": 19,
-      "condition": "sunny",
-      "humidity": 55,
-      "windSpeed": 9,
-      "uvIndex": 6,
-      "perception": "ideal",
-      "trafficImpact": 1.12,
-      "description": "Pleasant day, good foot traffic"
-    },
-    {
-      "date": "2026-04-13",
-      "temperature": 13,
-      "condition": "rainy",
-      "humidity": 88,
-      "windSpeed": 22,
-      "uvIndex": 1,
-      "perception": "poor",
-      "trafficImpact": 0.7,
-      "description": "Rainy and damp, reduced outdoor activity"
-    },
-    {
-      "date": "2026-04-14",
-      "temperature": 15,
-      "condition": "cloudy",
-      "humidity": 72,
-      "windSpeed": 16,
-      "uvIndex": 3,
-      "perception": "moderate",
-      "trafficImpact": 0.97,
-      "description": "Overcast but comfortable, moderate demand"
-    },
-    {
-      "date": "2026-04-15",
-      "temperature": 22,
-      "condition": "sunny",
-      "humidity": 54,
-      "windSpeed": 12,
-      "uvIndex": 7,
-      "perception": "excellent",
-      "trafficImpact": 1.2,
-      "description": "Sunny and warm, peak foot traffic likely"
-    },
-    {
       "date": "2026-04-16",
       "temperature": 18,
       "condition": "windy",
@@ -197,6 +65,105 @@
       "perception": "excellent",
       "trafficImpact": 1.18,
       "description": "Clear skies, high foot traffic expected"
+    },
+    {
+      "date": "2026-04-22",
+      "temperature": 20,
+      "condition": "sunny",
+      "humidity": 58,
+      "windSpeed": 11,
+      "uvIndex": 6,
+      "perception": "ideal",
+      "trafficImpact": 1.15,
+      "description": "Beautiful spring day, excellent foot traffic"
+    },
+    {
+      "date": "2026-04-23",
+      "temperature": 17,
+      "condition": "cloudy",
+      "humidity": 68,
+      "windSpeed": 14,
+      "uvIndex": 4,
+      "perception": "good",
+      "trafficImpact": 0.98,
+      "description": "Partly cloudy but pleasant, moderate demand"
+    },
+    {
+      "date": "2026-04-24",
+      "temperature": 19,
+      "condition": "sunny",
+      "humidity": 52,
+      "windSpeed": 8,
+      "uvIndex": 7,
+      "perception": "excellent",
+      "trafficImpact": 1.22,
+      "description": "Perfect sunny weather, peak outdoor activity"
+    },
+    {
+      "date": "2026-04-25",
+      "temperature": 14,
+      "condition": "rainy",
+      "humidity": 84,
+      "windSpeed": 21,
+      "uvIndex": 2,
+      "perception": "poor",
+      "trafficImpact": 0.72,
+      "description": "Rainy day with reduced foot traffic"
+    },
+    {
+      "date": "2026-04-26",
+      "temperature": 13,
+      "condition": "rainy",
+      "humidity": 86,
+      "windSpeed": 23,
+      "uvIndex": 1,
+      "perception": "poor",
+      "trafficImpact": 0.65,
+      "description": "Continuous rain, very low pedestrian activity"
+    },
+    {
+      "date": "2026-04-27",
+      "temperature": 18,
+      "condition": "cloudy",
+      "humidity": 71,
+      "windSpeed": 15,
+      "uvIndex": 3,
+      "perception": "moderate",
+      "trafficImpact": 0.96,
+      "description": "Overcast but improving, demand recovering"
+    },
+    {
+      "date": "2026-04-28",
+      "temperature": 22,
+      "condition": "sunny",
+      "humidity": 54,
+      "windSpeed": 9,
+      "uvIndex": 7,
+      "perception": "excellent",
+      "trafficImpact": 1.2,
+      "description": "Warm and sunny, strong foot traffic expected"
+    },
+    {
+      "date": "2026-04-29",
+      "temperature": 23,
+      "condition": "sunny",
+      "humidity": 52,
+      "windSpeed": 7,
+      "uvIndex": 8,
+      "perception": "excellent",
+      "trafficImpact": 1.25,
+      "description": "Peak spring weather, maximum outdoor engagement"
+    },
+    {
+      "date": "2026-04-30",
+      "temperature": 21,
+      "condition": "sunny",
+      "humidity": 55,
+      "windSpeed": 10,
+      "uvIndex": 7,
+      "perception": "excellent",
+      "trafficImpact": 1.18,
+      "description": "Clear and pleasant end of month, sustained high demand"
     }
   ]
 }
