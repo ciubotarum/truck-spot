@@ -339,3 +339,41 @@ thead {
   display: block;
   margin-bottom: 0.25rem;
 }
+
+/* AI Analysis Scrollable Sections */
+
+.ai-analysis-text-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  word-wrap: break-word;
+  word-break: break-word;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.5);
+  display: block;
+}
+
+.ai-analysis-text-scroll > div {
+  display: block;
+  width: 100%;
+}
+
+.ai-analysis-text-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-analysis-text-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.ai-analysis-text-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.ai-analysis-text-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}

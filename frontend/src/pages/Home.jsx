@@ -63,6 +63,7 @@ const Home = () => {
   const [myReservations, setMyReservations] = useState([]);
   const [myReservationsLoading, setMyReservationsLoading] = useState(false);
   const [myReservationsError, setMyReservationsError] = useState(null);
+  const [expandedReservationDates, setExpandedReservationDates] = useState(new Set());
 
   const todayDate = useMemo(() => new Date().toISOString().split('T')[0], []);
 
@@ -87,15 +88,32 @@ const Home = () => {
       groups.get(key).push(r);
     }
 
-    // Sort: newest date first; keep "Unknown date" last.
-    return Array.from(groups.entries())
-      .sort(([a], [b]) => {
-        if (a === 'Unknown date') return 1;
-        if (b === 'Unknown date') return -1;
-        return String(b).localeCompare(String(a));
-      })
-      .map(([dateKey, items]) => ({ date: dateKey, items }));
-  }, [myReservations]);
+    // Separate into today, future, and past
+    const today = todayDate;
+    const todayGroup = [];
+    const futureGroups = [];
+    const pastGroups = [];
+
+    Array.from(groups.entries()).forEach(([dateKey, items]) => {
+      const entry = { date: dateKey, items };
+      
+      if (dateKey === 'Unknown date') {
+        pastGroups.push(entry); // Put unknown at the end with past
+      } else if (dateKey === today) {
+        todayGroup.push(entry);
+      } else if (dateKey > today) {
+        futureGroups.push(entry);
+      } else {
+        pastGroups.push(entry);
+      }
+    });
+
+    // Sort future dates ascending (nearest first), past dates descending (nearest first)
+    futureGroups.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    pastGroups.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+    return [...todayGroup, ...futureGroups, ...pastGroups];
+  }, [myReservations, todayDate]);
 
   const loadMyReservations = async () => {
     if (!authUser) return;
@@ -246,7 +264,18 @@ const Home = () => {
       }
     } catch (err) {
       console.error('Failed to load recommendations:', err);
-      setRecommendationsError('Failed to load AI recommendations. Please try again later.');
+      
+      // Provide helpful error message based on error type
+      let errorMsg = 'Failed to load AI recommendations. Please try again later.';
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        errorMsg = 'Generation timed out. The AI analysis is taking longer than expected. Please try again in a moment.';
+      } else if (err.response?.status === 500) {
+        errorMsg = 'Server error while generating recommendations. Please try again.';
+      } else if (err.response?.status === 429) {
+        errorMsg = 'Server is busy. Please wait a moment and try again.';
+      }
+      
+      setRecommendationsError(errorMsg);
     } finally {
       setRecommendationsLoading(false);
     }
@@ -640,47 +669,108 @@ const Home = () => {
                     <div className="small text-muted">Loading…</div>
                   ) : myReservationsByDate.length > 0 ? (
                     <div className="d-flex flex-column gap-3">
-                      {myReservationsByDate.map((group) => (
-                        <div key={group.date} className="border rounded">
-                          <div className="d-flex align-items-center justify-content-between px-3 py-2 bg-light border-bottom">
-                            <div className="fw-semibold">
-                              {group.date}
-                              {group.date === todayDate ? (
-                                <span className="badge text-bg-primary ms-2">Today</span>
-                              ) : null}
-                            </div>
-                            <span className="badge text-bg-secondary">
-                              {group.items.length} booking{group.items.length === 1 ? '' : 's'}
-                            </span>
-                          </div>
+                      {myReservationsByDate.map((group, idx) => {
+                        const isToday = group.date === todayDate;
+                        const isExpanded = isToday || expandedReservationDates.has(group.date);
+                        const isFutureDate = group.date > todayDate;
+                        const isPastDate = group.date < todayDate;
+                        
+                        // Show "Upcoming" header before first future date
+                        const showUpcomingHeader = isFutureDate && (idx === 0 || myReservationsByDate[idx - 1].date === todayDate);
+                        // Show "Past" header before first past date
+                        const showPastHeader = isPastDate && (idx === 0 || myReservationsByDate[idx - 1].date > todayDate);
+                        
+                        return (
+                          <div key={group.date}>
+                            {showUpcomingHeader && (
+                              <div className="d-flex align-items-center gap-2 mb-2 mt-3">
+                                <span style={{ fontSize: '18px' }}>📅</span>
+                                <span className="fw-semibold text-muted">Upcoming Reservations</span>
+                              </div>
+                            )}
+                            {showPastHeader && (
+                              <div className="d-flex align-items-center gap-2 mb-2 mt-3">
+                                <span style={{ fontSize: '18px' }}>📜</span>
+                                <span className="fw-semibold text-muted">Past Reservations</span>
+                              </div>
+                            )}
+                            <div className="border rounded">
+                              <div className="d-flex align-items-center justify-content-between px-3 py-2 bg-light border-bottom">
+                                <div className="fw-semibold d-flex align-items-center gap-2">
+                                  {!isToday && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm p-0"
+                                      style={{ 
+                                        width: '24px', 
+                                        height: '24px', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center',
+                                        background: 'none',
+                                        border: 'none'
+                                      }}
+                                      onClick={() => {
+                                        const newExpanded = new Set(expandedReservationDates);
+                                        if (newExpanded.has(group.date)) {
+                                          newExpanded.delete(group.date);
+                                        } else {
+                                          newExpanded.add(group.date);
+                                        }
+                                        setExpandedReservationDates(newExpanded);
+                                      }}
+                                    >
+                                      <span style={{ fontSize: '16px' }}>
+                                        {isExpanded ? '▼' : '▶'}
+                                      </span>
+                                    </button>
+                                  )}
+                                  {group.date}
+                                  {group.date === todayDate ? (
+                                    <span className="badge text-bg-primary">Today</span>
+                                  ) : null}
+                                </div>
+                                <span className="badge text-bg-secondary">
+                                  {group.items.length} booking{group.items.length === 1 ? '' : 's'}
+                                </span>
+                              </div>
 
-                          <div className="table-responsive">
-                            <table className="table table-sm mb-0">
-                              <thead>
-                                <tr>
-                                  <th>Location</th>
-                                  <th>Spot</th>
-                                  <th>Created</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {group.items
-                                  .slice()
-                                  .sort((a, b) => String(b?.createdAt || '').localeCompare(String(a?.createdAt || '')))
-                                  .map((r, idx) => (
-                                    <tr key={`${r.locationId}-${r.spotNumber}-${r.date}-${idx}`}>
-                                      <td>{r.locationName || r.locationId}</td>
-                                      <td>#{r.spotNumber}</td>
-                                      <td className="text-muted">
-                                        {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}
-                                      </td>
-                                    </tr>
-                                  ))}
-                              </tbody>
-                            </table>
+                              {isExpanded && (
+                                <div className="table-responsive">
+                                  <table className="table table-sm mb-0" style={{ tableLayout: 'fixed' }}>
+                                    <colgroup>
+                                      <col style={{ width: '45%' }} />
+                                      <col style={{ width: '15%' }} />
+                                      <col style={{ width: '40%' }} />
+                                    </colgroup>
+                                    <thead>
+                                      <tr>
+                                        <th>Location</th>
+                                        <th>Spot</th>
+                                        <th>Created</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {group.items
+                                        .slice()
+                                        .sort((a, b) => String(b?.createdAt || '').localeCompare(String(a?.createdAt || '')))
+                                        .map((r, itemIdx) => (
+                                          <tr key={`${r.locationId}-${r.spotNumber}-${r.date}-${itemIdx}`}>
+                                            <td>{r.locationName || r.locationId}</td>
+                                            <td>#{r.spotNumber}</td>
+                                            <td className="text-muted">
+                                              {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="small text-muted">No reservations yet.</div>
@@ -709,6 +799,20 @@ const Home = () => {
                     </button>
                   </div>
 
+                  {/* Cache & Date Information */}
+                  {recommendations.length > 0 && (
+                    <div className="mb-3">
+                      <div className="d-flex align-items-center gap-2 flex-wrap">
+                        <small className="text-muted">
+                          <strong>Recommendations for:</strong> {recommendationsCacheInfo?.date || date}
+                        </small>
+                        {recommendationsCacheInfo?.date && recommendationsCacheInfo.date !== date && (
+                          <span className="badge bg-warning text-dark">⚠️ Click Refresh to generate for {date}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {recommendationsError ? (
                     <div className="alert alert-danger mb-3">{recommendationsError}</div>
                   ) : null}
@@ -716,7 +820,10 @@ const Home = () => {
                   {recommendationsLoading ? (
                     <div className="d-flex align-items-center gap-2 text-muted">
                       <div className="spinner-border spinner-border-sm text-primary" role="status" />
-                      <div>Generating recommendations for {date}…</div>
+                      <div>
+                        <div>Generating recommendations for {date}…</div>
+                        <small className="text-muted d-block">This may take up to 30 seconds for the first time</small>
+                      </div>
                     </div>
                   ) : null}
 
@@ -759,9 +866,9 @@ const Home = () => {
                     if (e.target === e.currentTarget) closeDetails();
                   }}
                 >
-                  <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-                    <div className="modal-content">
-                      <div className="modal-header">
+                  <div className="modal-dialog modal-dialog-centered modal-lg" style={{ maxHeight: '90vh' }}>
+                    <div className="modal-content" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+                      <div className="modal-header" style={{ flexShrink: 0 }}>
                         <div>
                           <h5 className="modal-title mb-0">
                             {detailsLocation?.name || 'Location details'}
@@ -773,7 +880,7 @@ const Home = () => {
                         <button type="button" className="btn-close" aria-label="Close" onClick={closeDetails}></button>
                       </div>
 
-                      <div className="modal-body">
+                      <div className="modal-body" style={{ flexGrow: 1, overflowY: 'auto' }}>
                         <div className="row g-3">
                           <div className="col-md-6">
                             <div className="card border-0 bg-light">
@@ -853,28 +960,54 @@ const Home = () => {
                             <div className="col-12">
                               <div className="card border-0">
                                 <div className="card-body p-0">
-                                  <h6 className="fw-bold mb-2">🧠 AI Reasoning</h6>
+                                  <h6 className="fw-bold mb-3 px-3 pt-3">🧠 AI Reasoning</h6>
                                   {hasRecommendation ? (
-                                    <div className="row g-3">
+                                    <div className="row g-3 px-3 pb-3">
                                       <div className="col-md-6">
-                                        <div className="p-3 bg-light rounded">
-                                          <div className="small fw-bold mb-2">Demand</div>
-                                          <div className="small text-muted">
-                                            {selectedRecommendation.agenticAnalysis?.decisions?.demand?.analysis || 'No demand analysis available.'}
+                                        <div className="p-3 bg-light rounded border">
+                                          <div className="small fw-bold mb-2">Demand Analysis</div>
+                                          <div 
+                                            style={{ 
+                                              height: '250px', 
+                                              overflowY: 'scroll',
+                                              borderRadius: '4px',
+                                              padding: '10px',
+                                              backgroundColor: '#ffffff',
+                                              border: '1px solid #dee2e6',
+                                              wordWrap: 'break-word',
+                                              whiteSpace: 'pre-wrap'
+                                            }}
+                                          >
+                                            <div className="small text-muted">
+                                              {selectedRecommendation.agenticAnalysis?.decisions?.demand?.analysis || 'No demand analysis available.'}
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
                                       <div className="col-md-6">
-                                        <div className="p-3 bg-light rounded">
-                                          <div className="small fw-bold mb-2">Context</div>
-                                          <div className="small text-muted">
-                                            {selectedRecommendation.agenticAnalysis?.decisions?.context?.analysis || 'No context analysis available.'}
+                                        <div className="p-3 bg-light rounded border">
+                                          <div className="small fw-bold mb-2">Context Analysis</div>
+                                          <div 
+                                            style={{ 
+                                              height: '250px', 
+                                              overflowY: 'scroll',
+                                              borderRadius: '4px',
+                                              padding: '10px',
+                                              backgroundColor: '#ffffff',
+                                              border: '1px solid #dee2e6',
+                                              wordWrap: 'break-word',
+                                              whiteSpace: 'pre-wrap'
+                                            }}
+                                          >
+                                            <div className="small text-muted">
+                                              {selectedRecommendation.agenticAnalysis?.decisions?.context?.analysis || 'No context analysis available.'}
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="small text-muted">
+                                    <div className="small text-muted px-3 pb-3">
                                       Open the recommendation card for this location to see AI reasoning.
                                     </div>
                                   )}
@@ -1026,7 +1159,7 @@ const Home = () => {
                         </div>
                       </div>
 
-                      <div className="modal-footer">
+                      <div className="modal-footer" style={{ flexShrink: 0 }}>
                         <button type="button" className="btn btn-outline-secondary" onClick={closeDetails}>
                           Close
                         </button>
