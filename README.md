@@ -2,6 +2,17 @@
 
 An intelligent location recommendation system for food trucks, powered by multi-agent AI architecture.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+  - [Setup Instructions](#setup-instructions)
+  - [How to Use the App](#how-to-use-the-app)
+- [Tech Stack](#tech-stack)
+- [Multi-Agent AI System Architecture](#multi-agent-ai-system-architecture)
+- [Agent Descriptions](#agent-descriptions)
+- [API Endpoints](#api-endpoints)
+- [Pricing (Pay-as-you-go booking)](#pricing-pay-as-you-go-booking)
+
 ## Tech Stack
 
 - **Frontend**: React + Vite + Bootstrap 5 + Leaflet (maps)
@@ -118,6 +129,98 @@ The frontend will run at http://localhost:5173
 1. Backend should be running at http://localhost:5000
 2. Frontend should be running at http://localhost:5173
 3. Visit http://localhost:5000/api/agents/health to verify AI agents are configured
+
+## How to Use the App
+
+### For Food Lovers (Guests)
+
+1. **View the Map**
+   - Open the homepage and browse the interactive map showing all food truck locations
+   - Click on any location marker to see more details
+   - View available parking spots and which food trucks are serving there today
+
+2. **Explore Locations**
+   - Click a marker on the map or a location name to open the details panel
+   - See location information: type, capacity, parking availability
+   - Browse food trucks currently reserved at that location
+   - Click on a food truck to view its profile (if available)
+
+### For Food Truck Owners
+
+#### 1. Register & Login
+
+1. Click the **Login** button in the top-right corner
+2. Select **Register** to create a new account
+3. Fill in the owner information:
+   - **Email** and **Password** (8+ characters)
+   - **Truck Name** (e.g., "Tasty Tacos")
+   - **Cuisine** (optional, e.g., "Mexican")
+   - **Description** (optional, e.g., "Street tacos and burritos")
+   - **Phone** (optional)
+4. Click **Create account** to finish registration
+
+#### 2. Use AI Recommendations
+
+1. After logging in, navigate to the **"AI-Powered Recommendations"** section on the homepage
+2. Select a date using the date picker at the top
+3. Click **Generate** to get AI recommendations for that date
+   - The system analyzes foot traffic, events, competition, and weather
+   - First generation may take up to 30 seconds (subsequent requests are cached)
+4. Review the recommendations displayed as cards showing:
+   - **Demand Score** (0-1): How much customer interest
+   - **Revenue Projection** (RON): Estimated daily revenue
+   - **Foot Traffic**: People per hour expected
+   - **Risk Level**: LOW, MEDIUM, or HIGH risk assessment
+
+5. Click **View Details** on any recommendation card to see:
+   - Full location information
+   - **AI Reasoning**: Detailed analysis from demand and context agents
+   - Scrollable analysis sections with complete AI reasoning
+
+6. **Track Recommendations Across Dates**
+   - The app shows which date the recommendations are for
+   - If you change dates, you'll see a warning: "⚠️ Click Refresh to generate for [new date]"
+   - Switching back to a previously analyzed date instantly restores cached results
+   - Future dates are generated first, then past dates
+
+#### 3. Make Parking Reservations
+
+1. In the **Recommendations** section or location details, expand a day's reservations
+2. Select an available parking spot from the dropdown
+3. View the **booking fee** (varies by location rank and availability)
+4. Click **Pay & Reserve** to complete the booking
+   - You'll be redirected to Stripe Checkout
+   - Complete payment in RON (Romanian currency)
+   - Upon success, return to TruckSpot to confirm the reservation
+
+4. **View Your Reservations**
+   - The **My Reservations** section shows all your bookings organized by date
+   - **Today's reservations** are always visible and expanded
+   - Click the arrow (▶) to expand **Upcoming** or **Past** reservations
+   - See location name, spot number, and booking creation time in an organized table
+
+5. **Manage Reservations**
+   - Click **Release** to cancel a parking spot reservation
+   - Refresh to see the latest availability and booking information
+
+#### 4. Location Guide
+
+Each location card shows:
+- **Location Name & Zone**: Where the location is
+- **Type**: Park, street, event venue, etc.
+- **Capacity**: How busy it gets (low, medium, high, very_high)
+- **Parking Spots**: Number of available spots
+- **Base Score**: Baseline suitability score
+- **Description**: Details about the location
+
+#### 5. Tips for Best Results
+
+- **Generate early**: Generate recommendations at the start of your planning day
+- **Check multiple dates**: Compare upcoming dates to find the best opportunities
+- **Read the AI analysis**: Demand and Context analyses explain the reasoning
+- **Watch for weather**: The AI factors in weather impacts (storms reduce foot traffic)
+- **Monitor competition**: The system learns about competing food trucks
+- **Book early**: High-rank locations (best revenue) book up quickly
 
 ## Multi-Agent AI System Architecture
 
