@@ -45,7 +45,9 @@ class RevenueCalculator {
         avgTicket: (avgTicketCents / 100).toFixed(2),
         pricingBasis: basis,
         assumptions: options.assumptions || null,
-        calculation: `${baseTransactions} (base tx) × ${Number(demandScore || 0).toFixed(2)} (demand) × ${Number(contextAdjustment || 1).toFixed(2)} (context) × ${avgTicketCents} (avgTicketCents)`
+        calculation: Number.isInteger(options.estimatedTransactions)
+          ? `${estimatedTransactions} transactions (from foot traffic × ${((options.assumptions?.conversionRate || 0) * 100).toFixed(1)}% conversion, capped at ${options.assumptions?.throughputCapPerDay ?? 'N/A'} by service throughput) × ${(avgTicketCents / 100).toFixed(2)} RON avg ticket`
+          : `${baseTransactions} (base tx) × ${Number(demandScore || 0).toFixed(2)} (demand) × ${Number(contextAdjustment || 1).toFixed(2)} (context) × ${(avgTicketCents / 100).toFixed(2)} RON avg ticket`
       };
     } catch (error) {
       console.error('Revenue Calculator Error:', error.message);

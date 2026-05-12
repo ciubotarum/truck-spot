@@ -930,7 +930,7 @@ const Home = () => {
                                       </div>
                                       <div className="col-6">
                                         <div className="p-2 bg-white rounded text-center">
-                                          <small className="text-muted d-block">Gross Revenue</small>
+                                          <small className="text-muted d-block">Gross Revenue / day</small>
                                           <div className="fw-bold text-success">
                                             {(selectedRecommendation.agenticAnalysis?.decisions?.revenue?.currency || 'RON')}{' '}
                                             {selectedRecommendation.agenticAnalysis?.decisions?.revenue?.projectedDailyRevenue || 0}

@@ -1,6 +1,6 @@
 # TruckSpot - AI-Powered Location Recommendation System
 
-An intelligent location recommendation system for food trucks, powered by multi-agent AI architecture.
+An intelligent location recommendation system for food trucks, powered by multi-agent AI architecture available at https://truckspotweb.z6.web.core.windows.net/.
 
 ## Table of Contents
 

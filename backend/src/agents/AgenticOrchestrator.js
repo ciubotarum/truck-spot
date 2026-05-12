@@ -136,7 +136,7 @@ What should be the next action? Return JSON.`;
       console.log(`${'─'.repeat(50)}`);
 
       const context = {
-        footTraffic: this.getFootTrafficData(location.id),
+        footTraffic: this.getFootTrafficData(location.id, date),
         events: this.getEventsData(location.id),
         competition: this.getCompetitionData(location.id),
         weather: this.getWeatherData(date),
@@ -187,10 +187,24 @@ What should be the next action? Return JSON.`;
 
       // Full-day estimation based on foot traffic/hour.
       const hoursOpen = Number.isFinite(options.hoursOpen) ? options.hoursOpen : 8;
-      const footPerHour = Number(context.footTraffic?.current) || 100;
-      const dailyFootTraffic = Math.max(0, footPerHour * hoursOpen);
-      // Conversion rate derived from demandScore: 2%..20%.
-      const conversionRate = Math.max(0.02, Math.min(0.2, 0.02 + (demandScore * 0.18)));
+      const peakFootPerHour = Number(context.footTraffic?.current) || 100;
+
+      // The foot traffic data captures peak-hour volume, not the daily average.
+      // Assume peak hours cover ~35% of the operating day at full traffic;
+      // the remaining 65% (slow/dead periods) run at ~25% of peak volume.
+      const dailyAvgFootPerHour = peakFootPerHour * (0.35 + 0.65 * 0.25);
+      const dailyFootTraffic = Math.max(0, Math.round(dailyAvgFootPerHour * hoursOpen));
+
+      // Realistic conversion: 0.5–1.5% of passersby actually stop and buy.
+      // Higher rates (2-5%) sound plausible but produce hundreds of daily transactions
+      // when multiplied by thousands of daily pedestrians — far beyond one truck's capacity.
+      const conversionRate = Math.max(0.005, Math.min(0.015, 0.005 + demandScore * 0.01));
+
+      // Estimated transactions from foot traffic and demand — no hard cap applied so that
+      // locations with genuinely different foot traffic produce different revenue figures.
+      // throughputCap is retained in assumptions as a reference ceiling only.
+      const effectiveOrdersPerHour = 8;
+      const throughputCap = effectiveOrdersPerHour * hoursOpen;
       const estimatedTransactions = Math.max(0, Math.round(dailyFootTraffic * conversionRate * contextAdjustment));
 
       analysisState.revenue = this.revenueCalculator.projectRevenue(
@@ -205,9 +219,13 @@ What should be the next action? Return JSON.`;
             estimatedTransactions,
             assumptions: {
               hoursOpen,
-              footTrafficPerHour: footPerHour,
+              peakFootTrafficPerHour: peakFootPerHour,
+              dailyAvgFootTrafficPerHour: Math.round(dailyAvgFootPerHour),
               dailyFootTraffic,
-              conversionRate
+              conversionRate,
+              estimatedTransactions,
+              throughputCapPerDay: throughputCap,
+              effectiveOrdersPerHour
             }
           }
           : { currency: 'RON' }
@@ -280,14 +298,21 @@ What should be the next action? Return JSON.`;
     };
   }
 
-  getFootTrafficData(locationId) {
+  getFootTrafficData(locationId, date) {
     const mockData = require('../data/mockFootTraffic.json');
     const data = Array.isArray(mockData) ? mockData : mockData.footTraffic;
-    const traffic = data.find(t => t.locationId === locationId);
-    return traffic ? { 
-      current: traffic.estimatedPedestrians, 
-      peak: traffic.peakHours?.join(', ') || 'N/A' 
-    } : { current: 100, peak: 'N/A' };
+    // Prefer entries for the requested date; fall back to any entry for this location.
+    const candidates = date
+      ? data.filter(t => t.locationId === locationId && t.date === date)
+      : [];
+    const entries = candidates.length > 0
+      ? candidates
+      : data.filter(t => t.locationId === locationId);
+    if (entries.length === 0) return { current: 100, peak: 'N/A' };
+    // Use the peak-hour entry (highest pedestrian count) as the representative value.
+    const peak = entries.reduce((max, t) =>
+      t.estimatedPedestrians > max.estimatedPedestrians ? t : max, entries[0]);
+    return { current: peak.estimatedPedestrians, peak: peak.peakHours?.join(', ') || 'N/A' };
   }
 
   getEventsData(locationId) {
