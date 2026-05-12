@@ -41,8 +41,8 @@ const RecommendationCard = ({ recommendation, rank, onSelect }) => {
   const footTraffic = extractFootTraffic(demand.reasoning);
   const events = extractEvents(demand.reasoning);
   const reasons = [
-    demand.analysis ? demand.analysis.substring(0, 100) + '...' : 'AI analysis unavailable',
-    context.analysis ? context.analysis.substring(0, 100) + '...' : 'Context analysis unavailable'
+    demand.analysis ? demand.analysis.substring(0, 200) : 'AI analysis unavailable',
+    context.analysis ? context.analysis.substring(0, 200) : 'Context analysis unavailable'
   ];
 
   return (

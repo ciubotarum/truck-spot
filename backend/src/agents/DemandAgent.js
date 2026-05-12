@@ -23,7 +23,7 @@ class DemandAgent {
         ],
         model: this.model,
         temperature: 0.7,
-        max_tokens: 100
+        max_tokens: 130
       });
 
       if (message.choices && message.choices[0]) {
@@ -49,20 +49,23 @@ class DemandAgent {
         ? `Average menu price: ~${truckContext.avgItemPriceRON} RON.`
         : '';
 
-      const prompt = `Analyze location demand. Location: ${location.name}. 
-      Foot traffic: ${footTraffic.current} people/hour. 
-      Events: ${events.length > 0 ? events.map(e => e.name).join(', ') : 'None'}.
-      ${menuLine} ${avgLine}
-      Consider how the menu and pricing might affect purchase intent (broad popularity/appeal). 
-      Rate demand on scale 0-100 and explain your reasoning in 1-2 sentences:`;
+      const prompt = `You are evaluating purchase demand for a food truck. Reply in this EXACT format — no other text:
+Score: [0-100]. [One sentence on foot traffic and events.] [One sentence on how the menu price affects purchase intent.]
+
+Location: ${location.name}
+Foot traffic: ${footTraffic.current} people/hour
+Nearby events: ${events.length > 0 ? events.map(e => e.name).join(', ') : 'None'}
+${menuLine} ${avgLine}
+
+Score:`;
 
       console.log(`[DEMAND AGENT] Analyzing demand for ${location.name} via Groq...`);
 
       const result = await this.callGroqAPI(prompt);
       
-      // Extract score from response
-      const scoreMatch = result.match(/\d+/);
-      const score = scoreMatch ? parseInt(scoreMatch[0]) / 100 : 0.5;
+      // Extract score from "Score: [0-100]" label
+      const scoreMatch = result.match(/Score:\s*(\d{1,3})/i);
+      const score = scoreMatch ? parseInt(scoreMatch[1]) / 100 : 0.5;
 
       return {
         agent: 'DemandAgent',

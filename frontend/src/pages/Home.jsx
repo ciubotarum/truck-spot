@@ -403,6 +403,13 @@ const Home = () => {
 
   const logout = () => {
     window.localStorage.removeItem('truckspot_auth_token');
+    // Clear in-memory state so the map resets to default dot colours immediately.
+    // sessionStorage cache is intentionally kept — keys are scoped by userId so another
+    // user logging in cannot see this user's data, and the same user logging back in
+    // will have their recommendations restored without needing to regenerate.
+    setRecommendations([]);
+    setSelectedRecommendation(null);
+    setRecommendationsCacheInfo(null);
     setAuthToken(null);
     setAuthUser(null);
     setAuthProfile(null);
