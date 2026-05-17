@@ -14,7 +14,7 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'TruckSpot Backend',
+    service: 'ParkEat Backend',
     environment: process.env.NODE_ENV
   });
 });

@@ -42,17 +42,17 @@ const Header = ({ date, authUser, authProfile, onOpenAuth, onLogout, onDateChang
           >
             <img
               src="/assets/logo.png"
-              alt="TruckSpot Logo"
+              alt="ParkEat Logo"
               style={{ maxHeight: '45px', maxWidth: '45px', objectFit: 'contain' }}
             />
           </div>
 
-          {/* Title and Tagline */}
+          {/* Title and Motto */}
           <div>
             <h1 className="fs-4 mb-0 fw-bold">
               {import.meta.env.VITE_APP_NAME}
             </h1>
-            <small className="text-light">{motto.tagline}</small>
+            <small className="text-light">{motto.motto}</small>
           </div>
         </div>
 

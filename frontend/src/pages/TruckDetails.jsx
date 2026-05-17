@@ -27,7 +27,7 @@ const TruckDetails = () => {
 
   useEffect(() => {
     // Boot auth from localStorage token (if present)
-    const token = window.localStorage.getItem('truckspot_auth_token');
+    const token = window.localStorage.getItem('parkeat_auth_token');
     if (!token) return;
 
     setAuthToken(token);
@@ -38,7 +38,7 @@ const TruckDetails = () => {
         setAuthProfile(data?.profile || null);
       })
       .catch(() => {
-        window.localStorage.removeItem('truckspot_auth_token');
+        window.localStorage.removeItem('parkeat_auth_token');
         setAuthToken(null);
         setAuthUser(null);
         setAuthProfile(null);
@@ -98,7 +98,7 @@ const TruckDetails = () => {
   }, [isOwner]);
 
   const logout = () => {
-    window.localStorage.removeItem('truckspot_auth_token');
+    window.localStorage.removeItem('parkeat_auth_token');
     setAuthToken(null);
     setAuthUser(null);
     setAuthProfile(null);
@@ -305,7 +305,7 @@ const TruckDetails = () => {
       <footer className="bg-dark text-light py-3 mt-4">
         <div className="container-lg text-center">
           <small className="text-muted">
-            TruckSpot © 2026 | Intelligent Location Recommendations for Food Trucks
+            ParkEat © 2026 | Intelligent Location Recommendations for Food Trucks
           </small>
         </div>
       </footer>

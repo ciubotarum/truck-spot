@@ -1,7 +1,7 @@
 {
-  "name": "truckspot-backend",
+  "name": "parkeat-backend",
   "version": "1.0.0",
-  "description": "TruckSpot - AI-powered location recommendation system for food trucks",
+  "description": "ParkEat - AI-powered location recommendation system for food trucks",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -16,7 +16,7 @@
     "express",
     "nodejs"
   ],
-  "author": "TruckSpot Team",
+  "author": "ParkEat Team",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",

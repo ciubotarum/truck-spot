@@ -20,7 +20,7 @@ export const setAuthToken = (token) => {
 
 // Boot token on initial load (so deep links still auth correctly)
 try {
-  const existingToken = window.localStorage.getItem('truckspot_auth_token');
+  const existingToken = window.localStorage.getItem('parkeat_auth_token');
   if (existingToken) setAuthToken(existingToken);
 } catch {
   // ignore

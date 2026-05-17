@@ -47,10 +47,10 @@ const Home = () => {
 
   const [guestUserId] = useState(() => {
     try {
-      const existing = window.localStorage.getItem('truckspot_user_id');
+      const existing = window.localStorage.getItem('parkeat_user_id');
       if (existing) return existing;
       const id = (window.crypto?.randomUUID ? window.crypto.randomUUID() : `user_${Math.random().toString(16).slice(2)}`);
-      window.localStorage.setItem('truckspot_user_id', id);
+      window.localStorage.setItem('parkeat_user_id', id);
       return id;
     } catch {
       return `user_${Math.random().toString(16).slice(2)}`;
@@ -69,7 +69,7 @@ const Home = () => {
 
   const recCacheKey = useMemo(() => {
     if (!authUser?.id) return null;
-    return `truckspot:ai_recs:${authUser.id}:${date}`;
+    return `parkeat:ai_recs:${authUser.id}:${date}`;
   }, [authUser?.id, date]);
 
   const isRecClientCacheFresh = useMemo(() => {
@@ -133,7 +133,7 @@ const Home = () => {
 
   useEffect(() => {
     // Boot auth from localStorage token (if present)
-    const token = window.localStorage.getItem('truckspot_auth_token');
+    const token = window.localStorage.getItem('parkeat_auth_token');
     if (!token) return;
 
     setAuthToken(token);
@@ -145,7 +145,7 @@ const Home = () => {
       })
       .catch(() => {
         // Token invalid/expired
-        window.localStorage.removeItem('truckspot_auth_token');
+        window.localStorage.removeItem('parkeat_auth_token');
         setAuthToken(null);
         setAuthUser(null);
         setAuthProfile(null);
@@ -402,7 +402,7 @@ const Home = () => {
   };
 
   const logout = () => {
-    window.localStorage.removeItem('truckspot_auth_token');
+    window.localStorage.removeItem('parkeat_auth_token');
     // Clear in-memory state so the map resets to default dot colours immediately.
     // sessionStorage cache is intentionally kept — keys are scoped by userId so another
     // user logging in cannot see this user's data, and the same user logging back in
@@ -441,7 +441,7 @@ const Home = () => {
 
       if (!token) throw new Error('Missing token');
 
-      window.localStorage.setItem('truckspot_auth_token', token);
+      window.localStorage.setItem('parkeat_auth_token', token);
       setAuthToken(token);
       setAuthUser(user);
       setAuthProfile(profile);
@@ -546,7 +546,7 @@ const Home = () => {
             <div className="card-body py-4">
               <div className="row align-items-center">
                 <div className="col-lg-12">
-                  <h2 className="text-white mb-2">Welcome to TruckSpot</h2>
+                  <h2 className="text-white mb-2">Welcome to ParkEat</h2>
                   <p className="text-white mb-0">
                     Find the best food trucks in your area, or if you're a truck owner, 
                     get AI-powered recommendations on where to sell.
@@ -1349,7 +1349,7 @@ const Home = () => {
         <div className="container-lg">
           <div className="row text-center text-md-start">
             <div className="col-md-4 mb-3 mb-md-0">
-              <h6 className="text-white mb-2">TruckSpot</h6>
+              <h6 className="text-white mb-2">ParkEat</h6>
               <small className="text-muted d-block">Intelligent location recommendations for food trucks</small>
             </div>
             <div className="col-md-4 mb-3 mb-md-0">
@@ -1363,7 +1363,7 @@ const Home = () => {
           </div>
           <hr className="border-secondary" />
           <div className="text-center">
-            <small className="text-muted">© 2026 TruckSpot</small>
+            <small className="text-muted">© 2026 ParkEat</small>
           </div>
         </div>
       </footer>

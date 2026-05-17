@@ -76,7 +76,7 @@ router.post('/checkout', requireAuth, async (req, res) => {
             currency: quote.currency,
             unit_amount: quote.amountCents,
             product_data: {
-              name: 'TruckSpot',
+              name: 'ParkEat',
               description: `Parking booking fee — ${quote.reason}`
             }
           },
@@ -85,7 +85,7 @@ router.post('/checkout', requireAuth, async (req, res) => {
       ],
       custom_text: {
         submit: {
-          message: 'Complete your TruckSpot booking payment.'
+          message: 'Complete your ParkEat booking payment.'
         }
       },
       success_url: `${frontendUrl}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
