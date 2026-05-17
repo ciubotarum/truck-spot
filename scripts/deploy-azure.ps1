@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Deploys TruckSpot to Azure from the command prompt using Azure CLI.
+Deploys ParkEat to Azure from the command prompt using Azure CLI.
 
 .DESCRIPTION
 - Backend: Azure App Service (Linux) + zip deploy
@@ -17,7 +17,7 @@ USAGE
   powershell -ExecutionPolicy Bypass -File .\scripts\deploy-azure.ps1
 
 Optional:
-  powershell -ExecutionPolicy Bypass -File .\scripts\deploy-azure.ps1 -Location westeurope -ResourceGroup truckspot-rg
+  powershell -ExecutionPolicy Bypass -File .\scripts\deploy-azure.ps1 -Location westeurope -ResourceGroup parkeat-rg
   powershell -ExecutionPolicy Bypass -File .\scripts\deploy-azure.ps1 -BackendName myapi -PlanName myplan -StorageAccountName mystorage
 
 NOTES
@@ -29,8 +29,8 @@ NOTES
 [CmdletBinding()]
 param(
   [string]$Location = "westeurope",
-  [string]$ResourceGroup = "truckspot-rg",
-  [string]$NamePrefix = "truckspot",
+  [string]$ResourceGroup = "parkeat-rg",
+  [string]$NamePrefix = "parkeat",
   [ValidateSet('B1','F1','S1')][string]$BackendSku = "B1",
   [ValidateSet('NODE:20-lts','NODE:22-lts','NODE:24-lts')][string]$BackendRuntime = "NODE:22-lts",
   [string]$BackendName,
@@ -95,7 +95,7 @@ function Normalize-Name([string]$s) {
 
 function Get-StorageAccountName([string]$prefix) {
   $p = ($prefix -replace '[^a-zA-Z0-9]', '').ToLowerInvariant()
-  if ($p.Length -lt 3) { $p = "truckspot" }
+  if ($p.Length -lt 3) { $p = "parkeat" }
   $name = ($p + "web").ToLowerInvariant()
   if ($name.Length -gt 24) { $name = $name.Substring(0,24) }
   if ($name.Length -lt 3) { $name = ($name + "abc").Substring(0,3) }
@@ -323,17 +323,54 @@ if (-not $SkipBackend) {
   }
 
   Write-Info "Preparing backend zip for deployment (excluding node_modules and .env)..."
-  $staging = Join-Path $env:TEMP "truckspot-backend"
+  $staging = Join-Path $env:TEMP "parkeat-backend"
   Copy-BackendToStaging -backendPath $backendPath -stagingPath $staging
 
-  $zipPath = Join-Path $env:TEMP "truckspot-backend.zip"
+  Write-Info "Installing production dependencies in staging area..."
+  Push-Location $staging
+  # Relax error preference: npm writes deprecation warnings to stderr which PS 5.1
+  # wraps into NativeCommandError records, causing Stop mode to halt the script.
+  $ErrorActionPreference = 'Continue'
+  try {
+    npm install --omit=dev --loglevel=error
+  } finally {
+    Pop-Location
+    $ErrorActionPreference = 'Stop'
+  }
+
+  $zipPath = Join-Path $env:TEMP "parkeat-backend.zip"
   New-ZipFromDirectory -sourceDir $staging -zipPath $zipPath
-  Assert-ZipHasEntries -zipPath $zipPath -requiredEntries @('server.js','src/app.js')
+  Assert-ZipHasEntries -zipPath $zipPath -requiredEntries @('server.js','src/app.js','node_modules/express/index.js')
 
   Write-Info "Deploying backend via zip deploy..."
-  # Ensure remote build installs npm deps
-  az webapp config appsettings set -g $ResourceGroup -n $backendAppName --settings "SCM_DO_BUILD_DURING_DEPLOYMENT=true" --output none | Out-Null
-  az webapp deployment source config-zip -g $ResourceGroup -n $backendAppName --src $zipPath --output none | Out-Null
+  # Set explicit startup command so Azure doesn't fall back to default-static-site.js
+  az webapp config set -g $ResourceGroup -n $backendAppName --startup-file "node server.js" --output none | Out-Null
+
+  # Use publishing credentials (basic auth) for Kudu zip deploy.
+  # az webapp deploy and az webapp deployment source config-zip both require an
+  # appservice.azure.com-scoped OAuth token that conditional access may block.
+  # Publishing credentials come from the ARM API (management.azure.com) — no extra
+  # scope needed — and Kudu accepts them as HTTP Basic auth on its REST endpoint.
+  #
+  # Basic auth to the SCM endpoint is disabled by default on new App Service instances;
+  # enable it first via an ARM sub-resource update (uses only management.azure.com token).
+  Write-Info "Enabling basic auth on SCM endpoint..."
+  az resource update -g $ResourceGroup `
+      --name "$backendAppName/basicPublishingCredentialsPolicies/scm" `
+      --resource-type "Microsoft.Web/sites/basicPublishingCredentialsPolicies" `
+      --set properties.allow=true --output none | Out-Null
+
+  Write-Info "Fetching publishing credentials..."
+  $pubCredsJson = az webapp deployment list-publishing-credentials -g $ResourceGroup -n $backendAppName -o json
+  $pubCreds = $pubCredsJson | ConvertFrom-Json
+  $kuduAuth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($pubCreds.publishingUserName):$($pubCreds.publishingPassword)"))
+  $kuduUri = "https://$backendAppName.scm.azurewebsites.net/api/zipdeploy"
+  Write-Info "Uploading zip to Kudu ($kuduUri)..."
+  $null = Invoke-WebRequest -Uri $kuduUri -Method POST `
+      -Headers @{ Authorization = "Basic $kuduAuth" } `
+      -InFile $zipPath -ContentType "application/zip" -UseBasicParsing
+  Write-Info "Zip uploaded. Waiting 20 s for extraction to complete..."
+  Start-Sleep -Seconds 20
 
   Write-Info "Backend deployed: $backendUrl"
 }
@@ -365,17 +402,11 @@ if (-not $SkipFrontend) {
   $frontendUrl = (az storage account show -g $ResourceGroup -n $storageName --query "primaryEndpoints.web" -o tsv).Trim()
   if ($frontendUrl.EndsWith('/')) { $frontendUrl = $frontendUrl.Substring(0, $frontendUrl.Length - 1) }
 
-  Write-Info "Granting current user RBAC for blob upload (Storage Blob Data Contributor)..."
-  try {
-    $storageId = (az storage account show -g $ResourceGroup -n $storageName --query id -o tsv).Trim()
-    $userId = (az ad signed-in-user show --query id -o tsv).Trim()
-    az role assignment create --assignee-object-id $userId --assignee-principal-type User --role "Storage Blob Data Contributor" --scope $storageId --output none | Out-Null
-  } catch {
-    Write-Warn "Could not auto-assign RBAC role. If upload fails, manually grant 'Storage Blob Data Contributor' on the storage account to your user in the Azure Portal."
-  }
-
   Write-Info "Uploading frontend assets to static website..."
-  az storage blob upload-batch --account-name $storageName --auth-mode login -d '$web' -s $distPath --overwrite true --output none | Out-Null
+  # Use account key auth — avoids needing storage.azure.com or graph.microsoft.com tokens,
+  # which conditional access policies may block when using a shared/student tenant.
+  $storageKey = (az storage account keys list -g $ResourceGroup -n $storageName --query "[0].value" -o tsv).Trim()
+  az storage blob upload-batch --account-name $storageName --account-key $storageKey -d '$web' -s $distPath --overwrite true --output none | Out-Null
 
   Write-Info "Frontend deployed: $frontendUrl"
 }

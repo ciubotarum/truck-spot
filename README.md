@@ -1,4 +1,4 @@
-# TruckSpot - AI-Powered Location Recommendation System
+# ParkEat - AI-Powered Location Recommendation System
 
 An intelligent location recommendation system for food trucks, powered by multi-agent AI architecture available at https://truckspotweb.z6.web.core.windows.net/.
 
@@ -87,7 +87,7 @@ cd ../frontend
 VITE_API_URL=http://localhost:5000
 
 # Optional UI labels
-VITE_APP_NAME=TruckSpot
+VITE_APP_NAME=ParkEat
 # VITE_APP_VERSION=1.0.0
 ```
 
@@ -191,7 +191,7 @@ The frontend will run at http://localhost:5173
 4. Click **Pay & Reserve** to complete the booking
    - You'll be redirected to Stripe Checkout
    - Complete payment in RON (Romanian currency)
-   - Upon success, return to TruckSpot to confirm the reservation
+   - Upon success, return to ParkEat to confirm the reservation
 
 4. **View Your Reservations**
    - The **My Reservations** section shows all your bookings organized by date
